@@ -178,7 +178,14 @@ def cleanup_tempdir(app, exc):
         pass
 
 def html_visit_math(self, node):
-    fname, depth = render_math(self, '$'+node['latex']+'$')
+    try:
+        fname, depth = render_math(self, '$'+node['latex']+'$')
+    except MathExtError, exc:
+        sm = nodes.system_message(str(exc), type='WARNING', level=2,
+                                  backrefs=[], source=node['latex'])
+        sm.walkabout(self)
+        self.builder.warn('display latex %r: ' % node['latex'] + str(exc))
+        raise nodes.SkipNode
     self.body.append('<img class="math" src="%s" alt="%s" %s/>' %
                      (fname, self.encode(node['latex']).strip(),
                       depth and 'style="vertical-align: %dpx" ' % (-depth) or ''))
@@ -189,7 +196,14 @@ def html_visit_displaymath(self, node):
         latex = node['latex']
     else:
         latex = wrap_displaymath(node['latex'], None)
-    fname, depth = render_math(self, latex)
+    try:
+        fname, depth = render_math(self, latex)
+    except MathExtError, exc:
+        sm = nodes.system_message(str(exc), type='WARNING', level=2,
+                                  backrefs=[], source=node['latex'])
+        sm.walkabout(self)
+        self.builder.warn('inline latex %r: ' % node['latex'] + str(exc))
+        raise nodes.SkipNode
     self.body.append(self.starttag(node, 'div', CLASS='math'))
     self.body.append('<p>')
     if node['number']:

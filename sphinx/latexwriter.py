@@ -221,6 +221,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.first_document = 1
         self.this_is_the_title = 1
         self.literal_whitespace = 0
+        self.no_contractions = 0
 
     def astext(self):
         return (HEADER % self.elements + self.highlighter.get_stylesheet() +
@@ -939,8 +940,10 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_literal_emphasis(self, node):
         self.body.append(r'\emph{\texttt{')
+        self.no_contractions += 1
     def depart_literal_emphasis(self, node):
         self.body.append('}}')
+        self.no_contractions -= 1
 
     def visit_strong(self, node):
         self.body.append(r'\textbf{')
@@ -1038,7 +1041,10 @@ class LaTeXTranslator(nodes.NodeVisitor):
             # no output in this line -- add a nonbreaking space, else the
             # \\ command will give an error
             self.body.append('~')
-        self.body.append('\\\\\n')
+        if self.table is not None:
+            self.body.append('\\newline\n')
+        else:
+            self.body.append('\\\\\n')
 
     def visit_block_quote(self, node):
         # If the block quote contains a single object and that object
@@ -1098,7 +1104,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_option_string(self, node):
         ostring = node.astext()
-        self.body.append(self.encode(ostring.replace('--', u'-﻿-')))
+        self.body.append(self.encode(ostring.replace('--', u'-{-}')))
         raise nodes.SkipNode
 
     def visit_description(self, node):
@@ -1150,6 +1156,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
             # Insert a blank before the newline, to avoid
             # ! LaTeX Error: There's no line here to end.
             text = text.replace(u'\n', u'~\\\\\n').replace(u' ', u'~')
+        if self.no_contractions:
+            text = text.replace('--', u'-{-}')
         return text
 
     def visit_Text(self, node):
