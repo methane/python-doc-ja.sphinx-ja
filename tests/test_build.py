@@ -20,7 +20,7 @@ from util import *
 from etree13 import ElementTree as ET
 
 from sphinx.builder import StandaloneHTMLBuilder, LaTeXBuilder
-from sphinx.latexwriter import LaTeXTranslator
+from sphinx.writers.latex import LaTeXTranslator
 
 
 html_warnfile = StringIO()
@@ -28,17 +28,21 @@ latex_warnfile = StringIO()
 
 ENV_WARNINGS = """\
 WARNING: %(root)s/images.txt:9: Image file not readable: foo.png
-WARNING: %(root)s/images.txt:21: Nonlocal image URI found: http://www.python.org/logo.png
+WARNING: %(root)s/images.txt:23: Nonlocal image URI found: http://www.python.org/logo.png
 WARNING: %(root)s/includes.txt:: (WARNING/2) Encoding 'utf-8' used for reading included \
 file u'wrongenc.inc' seems to be wrong, try giving an :encoding: option
 """
 
 HTML_WARNINGS = ENV_WARNINGS + """\
 WARNING: %(root)s/images.txt:: no matching candidate for image URI u'foo.*'
+WARNING: %(root)s/markup.txt:: invalid index entry u''
+WARNING: %(root)s/markup.txt:: invalid pair index entry u''
+WARNING: %(root)s/markup.txt:: invalid pair index entry u'keyword; '
 """
 
 LATEX_WARNINGS = ENV_WARNINGS + """\
 WARNING: None:: no matching candidate for image URI u'foo.*'
+WARNING: invalid pair index entry u''
 """
 
 HTML_XPATH = {
@@ -46,6 +50,9 @@ HTML_XPATH = {
         ".//img[@src='_images/img.png']": '',
         ".//img[@src='_images/img1.png']": '',
         ".//img[@src='_images/simg.png']": '',
+    },
+    'subdir/images.html': {
+        ".//img[@src='../_images/img1.png']": '',
     },
     'includes.html': {
         ".//pre/span[@class='s']": u'üöä',

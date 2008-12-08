@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-    sphinx.htmlhelp
-    ~~~~~~~~~~~~~~~
+    sphinx.builders.htmlhelp
+    ~~~~~~~~~~~~~~~~~~~~~~~~
 
     Build HTML help support files.
-    Adapted from the original Doc/tools/prechm.py.
+    Parts adapted from Python's Doc/tools/prechm.py.
 
     :copyright: 2007-2008 by Georg Brandl.
     :license: BSD.
@@ -17,6 +17,8 @@ from os import path
 from docutils import nodes
 
 from sphinx import addnodes
+from sphinx.builders.html import StandaloneHTMLBuilder
+
 
 # Project file (*.hhp) template.  'outname' is the file basename (like
 # the pythlp in pythlp.hhp); 'version' is the doc version number (like
@@ -118,103 +120,125 @@ was  will  with
 """.split()
 
 
-def build_hhx(builder, outdir, outname):
-    builder.info('dumping stopword list...')
-    f = open(path.join(outdir, outname+'.stp'), 'w')
-    try:
-        for word in sorted(stopwords):
-            print >>f, word
-    finally:
-        f.close()
+class HTMLHelpBuilder(StandaloneHTMLBuilder):
+    """
+    Builder that also outputs Windows HTML help project, contents and index files.
+    Adapted from the original Doc/tools/prechm.py.
+    """
+    name = 'htmlhelp'
 
-    builder.info('writing project file...')
-    f = open(path.join(outdir, outname+'.hhp'), 'w')
-    try:
-        f.write(project_template % {'outname': outname,
-                                    'title': builder.config.html_title,
-                                    'version': builder.config.version,
-                                    'project': builder.config.project})
-        if not outdir.endswith(os.sep):
-            outdir += os.sep
-        olen = len(outdir)
-        for root, dirs, files in os.walk(outdir):
-            staticdir = (root == path.join(outdir, '_static'))
-            for fn in files:
-                if (staticdir and not fn.endswith('.js')) or fn.endswith('.html'):
-                    print >>f, path.join(root, fn)[olen:].replace(os.sep, '\\')
-    finally:
-        f.close()
+    # don't copy the reST source
+    copysource = False
+    supported_image_types = ['image/png', 'image/gif', 'image/jpeg']
 
-    builder.info('writing TOC file...')
-    f = open(path.join(outdir, outname+'.hhc'), 'w')
-    try:
-        f.write(contents_header)
-        # special books
-        f.write('<LI> ' + object_sitemap % (builder.config.html_short_title,
-                                            'index.html'))
-        if builder.config.html_use_modindex:
-            f.write('<LI> ' + object_sitemap % (_('Global Module Index'),
-                                                'modindex.html'))
-        # the TOC
-        tocdoc = builder.env.get_and_resolve_doctree(builder.config.master_doc, builder,
-                                                     prune_toctrees=False)
-        def write_toc(node, ullevel=0):
-            if isinstance(node, nodes.list_item):
-                f.write('<LI> ')
-                for subnode in node:
-                    write_toc(subnode, ullevel)
-            elif isinstance(node, nodes.reference):
-                link = node['refuri']
-                title = cgi.escape(node.astext()).replace('"','&quot;')
-                item = object_sitemap % (title, link)
-                f.write(item.encode('ascii', 'xmlcharrefreplace'))
-            elif isinstance(node, nodes.bullet_list):
-                if ullevel != 0:
-                    f.write('<UL>\n')
-                for subnode in node:
-                    write_toc(subnode, ullevel+1)
-                if ullevel != 0:
-                    f.write('</UL>\n')
-            elif isinstance(node, addnodes.compact_paragraph):
-                for subnode in node:
-                    write_toc(subnode, ullevel)
-        istoctree = lambda node: isinstance(node, addnodes.compact_paragraph) and \
-                    node.has_key('toctree')
-        for node in tocdoc.traverse(istoctree):
-            write_toc(node)
-        f.write(contents_footer)
-    finally:
-        f.close()
+    # don't add links
+    add_permalinks = False
 
-    builder.info('writing index file...')
-    index = builder.env.create_index(builder)
-    f = open(path.join(outdir, outname+'.hhk'), 'w')
-    try:
-        f.write('<UL>\n')
-        def write_index(title, refs, subitems):
-            def write_param(name, value):
-                item = '    <param name="%s" value="%s">\n' % (name, value)
-                f.write(item.encode('ascii', 'xmlcharrefreplace'))
-            title = cgi.escape(title)
-            f.write('<LI> <OBJECT type="text/sitemap">\n')
-            write_param('Keyword', title)
-            if len(refs) == 0:
-                write_param('See Also', title)
-            elif len(refs) == 1:
-                write_param('Local', refs[0])
-            else:
-                for i, ref in enumerate(refs):
-                    write_param('Name', '[%d] %s' % (i, ref)) # XXX: better title?
-                    write_param('Local', ref)
-            f.write('</OBJECT>\n')
-            if subitems:
-                f.write('<UL> ')
-                for subitem in subitems:
-                    write_index(subitem[0], subitem[1], [])
-                f.write('</UL>')
-        for (key, group) in index:
-            for title, (refs, subitems) in group:
-                write_index(title, refs, subitems)
-        f.write('</UL>\n')
-    finally:
-        f.close()
+    def init(self):
+        StandaloneHTMLBuilder.init(self)
+        # the output files for HTML help must be .html only
+        self.out_suffix = '.html'
+
+    def handle_finish(self):
+        self.build_hhx(self.outdir, self.config.htmlhelp_basename)
+
+    def build_hhx(self, outdir, outname):
+        self.info('dumping stopword list...')
+        f = open(path.join(outdir, outname+'.stp'), 'w')
+        try:
+            for word in sorted(stopwords):
+                print >>f, word
+        finally:
+            f.close()
+
+        self.info('writing project file...')
+        f = open(path.join(outdir, outname+'.hhp'), 'w')
+        try:
+            f.write(project_template % {'outname': outname,
+                                        'title': self.config.html_title,
+                                        'version': self.config.version,
+                                        'project': self.config.project})
+            if not outdir.endswith(os.sep):
+                outdir += os.sep
+            olen = len(outdir)
+            for root, dirs, files in os.walk(outdir):
+                staticdir = (root == path.join(outdir, '_static'))
+                for fn in files:
+                    if (staticdir and not fn.endswith('.js')) or fn.endswith('.html'):
+                        print >>f, path.join(root, fn)[olen:].replace(os.sep, '\\')
+        finally:
+            f.close()
+
+        self.info('writing TOC file...')
+        f = open(path.join(outdir, outname+'.hhc'), 'w')
+        try:
+            f.write(contents_header)
+            # special books
+            f.write('<LI> ' + object_sitemap % (self.config.html_short_title,
+                                                'index.html'))
+            if self.config.html_use_modindex:
+                f.write('<LI> ' + object_sitemap % (_('Global Module Index'),
+                                                    'modindex.html'))
+            # the TOC
+            tocdoc = self.env.get_and_resolve_doctree(self.config.master_doc, self,
+                                                      prune_toctrees=False)
+            def write_toc(node, ullevel=0):
+                if isinstance(node, nodes.list_item):
+                    f.write('<LI> ')
+                    for subnode in node:
+                        write_toc(subnode, ullevel)
+                elif isinstance(node, nodes.reference):
+                    link = node['refuri']
+                    title = cgi.escape(node.astext()).replace('"','&quot;')
+                    item = object_sitemap % (title, link)
+                    f.write(item.encode('ascii', 'xmlcharrefreplace'))
+                elif isinstance(node, nodes.bullet_list):
+                    if ullevel != 0:
+                        f.write('<UL>\n')
+                    for subnode in node:
+                        write_toc(subnode, ullevel+1)
+                    if ullevel != 0:
+                        f.write('</UL>\n')
+                elif isinstance(node, addnodes.compact_paragraph):
+                    for subnode in node:
+                        write_toc(subnode, ullevel)
+            istoctree = lambda node: isinstance(node, addnodes.compact_paragraph) and \
+                        node.has_key('toctree')
+            for node in tocdoc.traverse(istoctree):
+                write_toc(node)
+            f.write(contents_footer)
+        finally:
+            f.close()
+
+        self.info('writing index file...')
+        index = self.env.create_index(self)
+        f = open(path.join(outdir, outname+'.hhk'), 'w')
+        try:
+            f.write('<UL>\n')
+            def write_index(title, refs, subitems):
+                def write_param(name, value):
+                    item = '    <param name="%s" value="%s">\n' % (name, value)
+                    f.write(item.encode('ascii', 'xmlcharrefreplace'))
+                title = cgi.escape(title)
+                f.write('<LI> <OBJECT type="text/sitemap">\n')
+                write_param('Keyword', title)
+                if len(refs) == 0:
+                    write_param('See Also', title)
+                elif len(refs) == 1:
+                    write_param('Local', refs[0])
+                else:
+                    for i, ref in enumerate(refs):
+                        write_param('Name', '[%d] %s' % (i, ref)) # XXX: better title?
+                        write_param('Local', ref)
+                f.write('</OBJECT>\n')
+                if subitems:
+                    f.write('<UL> ')
+                    for subitem in subitems:
+                        write_index(subitem[0], subitem[1], [])
+                    f.write('</UL>')
+            for (key, group) in index:
+                for title, (refs, subitems) in group:
+                    write_index(title, refs, subitems)
+            f.write('</UL>\n')
+        finally:
+            f.close()

@@ -22,8 +22,8 @@ Important points to note:
 
 * The term "fully-qualified name" refers to a string that names an importable
   Python object inside a module; for example, the FQN
-  ``"sphinx.builder.Builder"`` means the ``Builder`` class in the
-  ``sphinx.builder`` module.
+  ``"sphinx.builders.Builder"`` means the ``Builder`` class in the
+  ``sphinx.builders`` module.
 
 * Remember that document names use ``/`` as the path separator and don't contain
   the file name extension.
@@ -45,7 +45,7 @@ General configuration
 .. confval:: extensions
 
    A list of strings that are module names of Sphinx extensions.  These can be
-   extensions coming with Sphinx (named ``sphinx.addons.*``) or custom ones.
+   extensions coming with Sphinx (named ``sphinx.ext.*``) or custom ones.
 
    Note that you can extend :data:`sys.path` within the conf file if your
    extensions live in another directory -- but make sure you use absolute paths.
@@ -332,6 +332,15 @@ that use Sphinx' HTMLWriter class.
    If true, *SmartyPants* will be used to convert quotes and dashes to
    typographically correct entities.  Default: ``True``.
 
+.. confval:: html_add_permalinks
+
+   If true, Sphinx will add "permalinks" for each heading and description
+   environment as paragraph signs that become visible when the mouse hovers over
+   them.  Default: ``True``.
+
+   .. versionadded:: 0.6
+      Previously, this was always activated.
+   
 .. confval:: html_sidebars
 
    Custom sidebar templates, must be a dictionary that maps document names to
@@ -393,6 +402,12 @@ that use Sphinx' HTMLWriter class.
    If true, the reST sources are included in the HTML build as
    :file:`_sources/{name}`.  The default is ``True``.
 
+   .. warning::
+
+      If this config value is set to ``False``, the JavaScript search function
+      will only display the titles of matching documents, and no excerpt from
+      the matching contents.
+
 .. confval:: html_use_opensearch
 
    If nonempty, an `OpenSearch <http://opensearch.org>` description file will be
@@ -412,7 +427,7 @@ that use Sphinx' HTMLWriter class.
 .. confval:: html_translator_class
 
    A string with the fully-qualified name of a HTML Translator class, that is, a
-   subclass of Sphinx' :class:`~sphinx.htmlwriter.HTMLTranslator`, that is used
+   subclass of Sphinx' :class:`~sphinx.writers.html.HTMLTranslator`, that is used
    to translate document trees to HTML.  Default is ``None`` (use the builtin
    translator).
 

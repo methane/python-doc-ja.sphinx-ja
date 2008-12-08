@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    sphinx.latexwriter
-    ~~~~~~~~~~~~~~~~~~
+    sphinx.writers.latex
+    ~~~~~~~~~~~~~~~~~~~~
 
     Custom docutils writer for LaTeX.
 
@@ -750,7 +750,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 include_graphics_options.append('width=%s' % w)
         if attrs.has_key('height'):
             h = self.latex_image_length(attrs['height'])
-            include_graphics_options.append('height=%s' % h)
+            if h:
+                include_graphics_options.append('height=%s' % h)
         if attrs.has_key('align'):
             align_prepost = {
                 # By default latex aligns the top of an image.
@@ -892,10 +893,16 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 self.body.append(r'\index{%s}' % scre.sub('!', self.encode(string)))
             elif type == 'pair':
                 parts = tuple(self.encode(x.strip()) for x in string.split(';', 1))
-                self.body.append(r'\indexii{%s}{%s}' % parts)
+                try:
+                    self.body.append(r'\indexii{%s}{%s}' % parts)
+                except TypeError:
+                    self.builder.warn('invalid pair index entry %r' % string)
             elif type == 'triple':
                 parts = tuple(self.encode(x.strip()) for x in string.split(';', 2))
-                self.body.append(r'\indexiii{%s}{%s}{%s}' % parts)
+                try:
+                    self.body.append(r'\indexiii{%s}{%s}{%s}' % parts)
+                except TypeError:
+                    self.builder.warn('invalid triple index entry %r' % string)
             else:
                 self.builder.warn('unknown index entry type %s found' % type)
         raise nodes.SkipNode

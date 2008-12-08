@@ -625,15 +625,17 @@ class BuildEnvironment:
                 self.warn(docname, 'Nonlocal image URI found: %s' % imguri, node.line)
                 candidates['?'] = imguri
                 continue
+            # imgpath is the image path *from srcdir*
             imgpath = path.normpath(path.join(docdir, imguri))
+            # set imgpath as default URI
             node['uri'] = imgpath
             if imgpath.endswith(os.extsep + '*'):
                 for filename in glob(path.join(self.srcdir, imgpath)):
-                    relname = relative_path(self.srcdir, filename)
+                    new_imgpath = relative_path(self.srcdir, filename)
                     if filename.lower().endswith('.pdf'):
-                        candidates['application/pdf'] = path.join(docdir, relname)
+                        candidates['application/pdf'] = new_imgpath
                     elif filename.lower().endswith('.svg'):
-                        candidates['image/svg+xml'] = path.join(docdir, relname)
+                        candidates['image/svg+xml'] = new_imgpath
                     else:
                         try:
                             f = open(filename, 'rb')
@@ -644,9 +646,11 @@ class BuildEnvironment:
                         except (OSError, IOError):
                             self.warn(docname, 'Image file %s not readable' % filename)
                         if imgtype:
-                            candidates['image/' + imgtype] = path.join(docdir, relname)
+                            candidates['image/' + imgtype] = new_imgpath
             else:
                 candidates['*'] = imgpath
+            # map image paths to unique image names (so that they can be put
+            # into a single directory)
             for imgpath in candidates.itervalues():
                 self.dependencies.setdefault(docname, set()).add(imgpath)
                 if not os.access(path.join(self.srcdir, imgpath), os.R_OK):
@@ -1137,25 +1141,42 @@ class BuildEnvironment:
                     pass
 
         for fn, entries in self.indexentries.iteritems():
-            # new entry types must be listed in directives.py!
+            # new entry types must be listed in directives/other.py!
             for type, string, tid, alias in entries:
                 if type == 'single':
                     try:
                         entry, subentry = string.split(';', 1)
                     except ValueError:
                         entry, subentry = string, ''
+                    if not entry:
+                        self.warn(fn, 'invalid index entry %r' % string)
+                        continue
                     add_entry(entry.strip(), subentry.strip())
                 elif type == 'pair':
-                    first, second = map(lambda x: x.strip(), string.split(';', 1))
+                    try:
+                        first, second = map(lambda x: x.strip(),
+                                            string.split(';', 1))
+                        if not first or not second:
+                            raise ValueError
+                    except ValueError:
+                        self.warn(fn, 'invalid pair index entry %r' % string)
+                        continue
                     add_entry(first, second)
                     add_entry(second, first)
                 elif type == 'triple':
-                    first, second, third = map(lambda x: x.strip(), string.split(';', 2))
+                    try:
+                        first, second, third = map(lambda x: x.strip(),
+                                                   string.split(';', 2))
+                        if not first or not second or not third:
+                            raise ValueError
+                    except ValueError:
+                        self.warn(fn, 'invalid triple index entry %r' % string)
+                        continue
                     add_entry(first, second+' '+third)
                     add_entry(second, third+', '+first)
                     add_entry(third, first+' '+second)
                 else:
-                    self.warn(fn, "unknown index entry type %r" % type)
+                    self.warn(fn, 'unknown index entry type %r' % type)
 
         newlist = new.items()
         newlist.sort(key=lambda t: t[0].lower())
