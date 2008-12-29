@@ -1,0 +1,24 @@
+Test file and literal inclusion
+===============================
+
+.. include:: subdir/include.inc
+
+.. literalinclude:: literal.inc
+   :language: python
+
+.. should give a warning
+.. literalinclude:: wrongenc.inc
+
+.. should succeed
+.. literalinclude:: wrongenc.inc
+   :encoding: latin-1
+.. include:: wrongenc.inc
+   :encoding: latin-1
+
+
+Testing downloadable files
+==========================
+
+Download :download:`img.png` here.
+Download :download:`this <subdir/img.png>` there.
+Don't download :download:`this <nonexisting.png>`.
