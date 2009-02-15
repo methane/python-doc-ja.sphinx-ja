@@ -29,7 +29,8 @@ from sphinx.builders import Builder, ENV_PICKLE_FILENAME
 from sphinx.application import SphinxError
 from sphinx.highlighting import PygmentsBridge
 from sphinx.util.console import bold
-from sphinx.writers.html import HTMLWriter, HTMLTranslator, SmartyPantsHTMLTranslator
+from sphinx.writers.html import HTMLWriter, HTMLTranslator, \
+     SmartyPantsHTMLTranslator
 
 try:
     import json
@@ -64,8 +65,8 @@ class StandaloneHTMLBuilder(Builder):
     script_files = ['_static/jquery.js', '_static/doctools.js']
 
     def init(self):
-        """Load templates."""
         self.init_templates()
+        self.init_highlighter()
         self.init_translator_class()
         if self.config.html_file_suffix:
             self.out_suffix = self.config.html_file_suffix
@@ -81,10 +82,19 @@ class StandaloneHTMLBuilder(Builder):
             if path.isfile(jsfile):
                 self.script_files.append('_static/translations.js')
 
+    def init_highlighter(self):
+        # determine Pygments style and create the highlighter
+        if self.config.pygments_style is not None:
+            style = self.config.pygments_style
+        else:
+            style = self.theme.get_confstr('theme', 'pygments_style', 'none')
+        self.highlighter = PygmentsBridge('html', style)
+
     def init_translator_class(self):
         if self.config.html_translator_class:
             self.translator_class = self.app.import_object(
-                self.config.html_translator_class, 'html_translator_class setting')
+                self.config.html_translator_class,
+                'html_translator_class setting')
         elif self.config.html_use_smartypants:
             self.translator_class = SmartyPantsHTMLTranslator
         else:
@@ -137,7 +147,13 @@ class StandaloneHTMLBuilder(Builder):
         if self.config.html_use_index:
             rellinks.append(('genindex', _('General Index'), 'I', _('index')))
         if self.config.html_use_modindex and self.env.modules:
-            rellinks.append(('modindex', _('Global Module Index'), 'M', _('modules')))
+            rellinks.append(('modindex', _('Global Module Index'),
+                             'M', _('modules')))
+
+        if self.config.html_style is not None:
+            stylename = self.config.html_style
+        else:
+            stylename = self.theme.get_confstr('theme', 'stylesheet')
 
         self.globalcontext = dict(
             embedded = self.embedded,
@@ -147,7 +163,6 @@ class StandaloneHTMLBuilder(Builder):
             last_updated = self.last_updated,
             copyright = self.config.copyright,
             master_doc = self.config.master_doc,
-            style = self.config.html_style,
             use_opensearch = self.config.html_use_opensearch,
             docstitle = self.config.html_title,
             shorttitle = self.config.html_short_title,
@@ -157,12 +172,16 @@ class StandaloneHTMLBuilder(Builder):
             file_suffix = self.out_suffix,
             script_files = self.script_files,
             sphinx_version = __version__,
+            style = stylename,
             rellinks = rellinks,
             builder = self.name,
             parents = [],
             logo = logo,
             favicon = favicon,
         )
+        self.globalcontext.update(
+            ('theme_' + key, val) for (key, val) in
+            self.theme.get_options(self.config.html_theme_options).iteritems())
         self.globalcontext.update(self.config.html_context)
 
     def _get_local_toctree(self, docname):
@@ -179,18 +198,23 @@ class StandaloneHTMLBuilder(Builder):
         titles = self.env.titles
         if related and related[2]:
             try:
-                next = {'link': self.get_relative_uri(docname, related[2]),
-                        'title': self.render_partial(titles[related[2]])['title']}
+                next = {
+                    'link': self.get_relative_uri(docname, related[2]),
+                    'title': self.render_partial(titles[related[2]])['title']
+                }
                 rellinks.append((related[2], next['title'], 'N', _('next')))
             except KeyError:
                 next = None
         if related and related[1]:
             try:
-                prev = {'link': self.get_relative_uri(docname, related[1]),
-                        'title': self.render_partial(titles[related[1]])['title']}
+                prev = {
+                    'link': self.get_relative_uri(docname, related[1]),
+                    'title': self.render_partial(titles[related[1]])['title']
+                }
                 rellinks.append((related[1], prev['title'], 'P', _('previous')))
             except KeyError:
-                # the relation is (somehow) not in the TOC tree, handle that gracefully
+                # the relation is (somehow) not in the TOC tree, handle
+                # that gracefully
                 prev = None
         while related and related[0]:
             try:
@@ -214,6 +238,9 @@ class StandaloneHTMLBuilder(Builder):
         # metadata for the document
         meta = self.env.metadata.get(docname)
 
+        # local TOC and global TOC tree
+        toc = self.render_partial(self.env.get_toc_for(docname))['fragment']
+
         return dict(
             parents = parents,
             prev = prev,
@@ -224,7 +251,7 @@ class StandaloneHTMLBuilder(Builder):
             metatags = metatags,
             rellinks = rellinks,
             sourcename = sourcename,
-            toc = self.render_partial(self.env.get_toc_for(docname))['fragment'],
+            toc = toc,
             # only display a TOC if there's more than one item to show
             display_toc = (self.env.toc_num_entries[docname] > 1),
         )
@@ -267,12 +294,15 @@ class StandaloneHTMLBuilder(Builder):
             self.info(' genindex', nonl=1)
 
             if self.config.html_split_index:
-                self.handle_page('genindex', genindexcontext, 'genindex-split.html')
-                self.handle_page('genindex-all', genindexcontext, 'genindex.html')
+                self.handle_page('genindex', genindexcontext,
+                                 'genindex-split.html')
+                self.handle_page('genindex-all', genindexcontext,
+                                 'genindex.html')
                 for (key, entries), count in zip(genindex, indexcounts):
                     ctx = {'key': key, 'entries': entries, 'count': count,
                            'genindexentries': genindex}
-                    self.handle_page('genindex-' + key, ctx, 'genindex-single.html')
+                    self.handle_page('genindex-' + key, ctx,
+                                     'genindex-single.html')
             else:
                 self.handle_page('genindex', genindexcontext, 'genindex.html')
 
@@ -298,11 +328,24 @@ class StandaloneHTMLBuilder(Builder):
             for mn, (fn, sy, pl, dep) in modules:
                 pl = pl and pl.split(', ') or []
                 platforms.update(pl)
+
+                ignore = self.env.config['modindex_common_prefix']
+                ignore = sorted(ignore, key=len, reverse=True)
+                for i in ignore:
+                    if mn.startswith(i):
+                        mn = mn[len(i):]
+                        stripped = i
+                        break
+                else:
+                    stripped = ''
+
                 if fl != mn[0].lower() and mn[0] != '_':
                     # heading
-                    modindexentries.append(['', False, 0, False,
-                                            mn[0].upper(), '', [], False])
-                    letters.append(mn[0].upper())
+                    letter = mn[0].upper()
+                    if letter not in letters:
+                        modindexentries.append(['', False, 0, False,
+                                                letter, '', [], False, ''])
+                        letters.append(letter)
                 tn = mn.split('.')[0]
                 if tn != mn:
                     # submodule
@@ -313,11 +356,13 @@ class StandaloneHTMLBuilder(Builder):
                     elif not pmn.startswith(tn):
                         # submodule without parent in list, add dummy entry
                         cg += 1
-                        modindexentries.append([tn, True, cg, False, '', '', [], False])
+                        modindexentries.append([tn, True, cg, False, '', '',
+                                                [], False, stripped])
                 else:
                     num_toplevels += 1
                     cg += 1
-                modindexentries.append([mn, False, cg, (tn != mn), fn, sy, pl, dep])
+                modindexentries.append([mn, False, cg, (tn != mn), fn, sy, pl,
+                                        dep, stripped])
                 pmn = mn
                 fl = mn[0].lower()
             platforms = sorted(platforms)
@@ -326,6 +371,19 @@ class StandaloneHTMLBuilder(Builder):
             # only collapse if number of toplevel modules is larger than
             # number of submodules
             collapse = len(modules) - num_toplevels < num_toplevels
+
+            # As some parts of the module names may have been stripped, those
+            # names have changed, thus it is necessary to sort the entries.
+            if ignore:
+                def sorthelper(entry):
+                    name = entry[0]
+                    if name == '':
+                        # heading
+                        name = entry[4]
+                    return name.lower()
+
+                modindexentries.sort(key=sorthelper)
+                letters.sort()
 
             modindexcontext = dict(
                 modindexentries = modindexentries,
@@ -378,7 +436,7 @@ class StandaloneHTMLBuilder(Builder):
         ensuredir(path.join(self.outdir, '_static'))
         # first, create pygments style file
         f = open(path.join(self.outdir, '_static', 'pygments.css'), 'w')
-        f.write(PygmentsBridge('html', self.config.pygments_style).get_stylesheet())
+        f.write(self.highlighter.get_stylesheet())
         f.close()
         # then, copy translations JavaScript file
         if self.config.language is not None:
@@ -388,7 +446,8 @@ class StandaloneHTMLBuilder(Builder):
                 shutil.copyfile(jsfile, path.join(self.outdir, '_static',
                                                   'translations.js'))
         # then, copy over all user-supplied static files
-        staticdirnames = [path.join(package_dir, 'static')] + \
+        staticdirnames = [path.join(themepath, 'static')
+                          for themepath in self.theme.get_dirchain()[::-1]] + \
                          [path.join(self.confdir, spath)
                           for spath in self.config.html_static_path]
         for staticdirname in staticdirnames:
@@ -401,7 +460,16 @@ class StandaloneHTMLBuilder(Builder):
                 fullname = path.join(staticdirname, filename)
                 targetname = path.join(self.outdir, '_static', filename)
                 if path.isfile(fullname):
-                    shutil.copyfile(fullname, targetname)
+                    if fullname.lower().endswith('_t'):
+                        # templated!
+                        fsrc = open(fullname, 'rb')
+                        fdst = open(targetname[:-2], 'wb')
+                        fdst.write(self.templates.render_string(
+                            fsrc.read(), self.globalcontext))
+                        fsrc.close()
+                        fdst.close()
+                    else:
+                        shutil.copyfile(fullname, targetname)
                 elif path.isdir(fullname):
                     if filename in self.config.exclude_dirnames:
                         continue
@@ -418,6 +486,10 @@ class StandaloneHTMLBuilder(Builder):
         # dump the search index
         self.handle_finish()
 
+    def cleanup(self):
+        # clean up theme stuff
+        self.theme.cleanup()
+
     def get_outdated_docs(self):
         if self.templates:
             template_mtime = self.templates.newest_template_mtime()
@@ -427,7 +499,8 @@ class StandaloneHTMLBuilder(Builder):
             if docname not in self.env.all_docs:
                 yield docname
                 continue
-            targetname = self.env.doc2path(docname, self.outdir, self.out_suffix)
+            targetname = self.env.doc2path(docname, self.outdir,
+                                           self.out_suffix)
             try:
                 targetmtime = path.getmtime(targetname)
             except Exception:
@@ -451,8 +524,9 @@ class StandaloneHTMLBuilder(Builder):
                 f.close()
         except (IOError, OSError, ValueError):
             if keep:
-                self.warn("search index couldn't be loaded, but not all documents "
-                          "will be built: the index will be incomplete.")
+                self.warn('search index couldn\'t be loaded, but not all '
+                          'documents will be built: the index will be '
+                          'incomplete.')
         # delete all entries for files that will be rebuilt
         self.indexer.prune(keep)
 
@@ -483,12 +557,15 @@ class StandaloneHTMLBuilder(Builder):
         ctx['toctree'] = lambda: self._get_local_toctree(pagename)
         ctx.update(addctx)
 
-        self.app.emit('html-page-context', pagename, templatename, ctx, event_arg)
+        self.app.emit('html-page-context', pagename, templatename,
+                      ctx, event_arg)
 
         output = self.templates.render(templatename, ctx)
         if not outfilename:
-            outfilename = path.join(self.outdir, os_path(pagename) + self.out_suffix)
-        ensuredir(path.dirname(outfilename)) # normally different from self.outdir
+            outfilename = path.join(self.outdir,
+                                    os_path(pagename) + self.out_suffix)
+        # outfilename's path is in general different from self.outdir
+        ensuredir(path.dirname(outfilename))
         try:
             f = codecs.open(outfilename, 'w', 'utf-8')
             try:
@@ -499,7 +576,8 @@ class StandaloneHTMLBuilder(Builder):
             self.warn("Error writing file %s: %s" % (outfilename, err))
         if self.copysource and ctx.get('sourcename'):
             # copy the source file for the "show source" link
-            source_name = path.join(self.outdir, '_sources', os_path(ctx['sourcename']))
+            source_name = path.join(self.outdir, '_sources',
+                                    os_path(ctx['sourcename']))
             ensuredir(path.dirname(source_name))
             shutil.copyfile(self.env.doc2path(pagename), source_name)
 
@@ -507,8 +585,8 @@ class StandaloneHTMLBuilder(Builder):
         self.info(bold('dumping search index... '), nonl=True)
         self.indexer.prune(self.env.all_docs)
         searchindexfn = path.join(self.outdir, self.searchindex_filename)
-        # first write to a temporary file, so that if dumping fails, the existing
-        # index won't be overwritten
+        # first write to a temporary file, so that if dumping fails,
+        # the existing index won't be overwritten
         f = open(searchindexfn + '.tmp', 'wb')
         try:
             self.indexer.dump(f, self.indexer_format)
@@ -526,7 +604,8 @@ class StandaloneHTMLBuilder(Builder):
             for modname, info in self.env.modules.iteritems():
                 f.write('%s mod %s\n' % (modname, self.get_target_uri(info[0])))
             for refname, (docname, desctype) in self.env.descrefs.iteritems():
-                f.write('%s %s %s\n' % (refname, desctype, self.get_target_uri(docname)))
+                f.write('%s %s %s\n' % (refname, desctype,
+                                        self.get_target_uri(docname)))
         finally:
             f.close()
         self.info('done')
@@ -549,6 +628,7 @@ class SerializingHTMLBuilder(StandaloneHTMLBuilder):
 
     def init(self):
         self.init_translator_class()
+        self.init_highlighter()
         self.templates = None   # no template bridge necessary
 
     def get_target_uri(self, docname, typ=None):
@@ -566,9 +646,11 @@ class SerializingHTMLBuilder(StandaloneHTMLBuilder):
             ctx['customsidebar'] = sidebarfile
 
         if not outfilename:
-            outfilename = path.join(self.outdir, os_path(pagename) + self.out_suffix)
+            outfilename = path.join(self.outdir,
+                                    os_path(pagename) + self.out_suffix)
 
-        self.app.emit('html-page-context', pagename, templatename, ctx, event_arg)
+        self.app.emit('html-page-context', pagename, templatename,
+                      ctx, event_arg)
 
         ensuredir(path.dirname(outfilename))
         f = open(outfilename, 'wb')
@@ -635,7 +717,7 @@ class JSONHTMLBuilder(SerializingHTMLBuilder):
 
     def init(self):
         if json is None:
-            raise SphinxError('The module simplejson (or json in Python >= 2.6) '
-                              'is not available. The JSONHTMLBuilder builder '
-                              'will not work.')
+            raise SphinxError(
+                'The module simplejson (or json in Python >= 2.6) '
+                'is not available. The JSONHTMLBuilder builder will not work.')
         SerializingHTMLBuilder.init(self)

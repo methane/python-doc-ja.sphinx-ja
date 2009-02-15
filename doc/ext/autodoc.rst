@@ -68,7 +68,7 @@ directive.
             Boil the noodle *time* minutes.
 
    **Options and advanced usage**
-         
+
    * If you want to automatically document members, there's a ``members``
      option::
 

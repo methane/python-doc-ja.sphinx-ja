@@ -4,6 +4,7 @@
 {%- endblock %}
 {%- set reldelim1 = reldelim1 is not defined and ' &raquo;' or reldelim1 %}
 {%- set reldelim2 = reldelim2 is not defined and ' |' or reldelim2 %}
+
 {%- macro relbar() %}
     <div class="related">
       <h3>{{ _('Navigation') }}</h3>
@@ -24,8 +25,9 @@
       </ul>
     </div>
 {%- endmacro %}
+
 {%- macro sidebar() %}
-      {%- if not embedded %}
+      {%- if not embedded %}{% if not theme_nosidebar|tobool %}
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
           {%- block sidebarlogo %}
@@ -66,8 +68,8 @@
           {% include customsidebar %}
           {%- endif %}
           {%- block sidebarsearch %}
-	  {%- if pagename != "search" %}
-	  <div id="searchbox" style="display: none">
+          {%- if pagename != "search" %}
+          <div id="searchbox" style="display: none">
             <h3>{{ _('Quick search') }}</h3>
               <form class="search" action="{{ pathto('search') }}" method="get">
                 <input type="text" name="q" size="18" />
@@ -75,14 +77,16 @@
                 <input type="hidden" name="check_keywords" value="yes" />
                 <input type="hidden" name="area" value="default" />
               </form>
-	      <p style="font-size: 90%">{{ _('Enter search terms or a module, class or function name.') }}</p>
+              <p class="searchtip" style="font-size: 90%">
+              {{ _('Enter search terms or a module, class or function name.') }}
+              </p>
           </div>
           <script type="text/javascript">$('#searchbox').show(0);</script>
           {%- endif %}
           {%- endblock %}
         </div>
       </div>
-      {%- endif %}
+      {%- endif %}{% endif %}
 {%- endmacro %}
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -142,6 +146,7 @@
 {%- block extrahead %} {% endblock %}
   </head>
   <body>
+{%- block header %}{% endblock %}
 
 {%- block relbar1 %}{{ relbar() }}{% endblock %}
 
@@ -150,21 +155,20 @@
 {%- block document %}
     <div class="document">
       <div class="documentwrapper">
-      {%- if not embedded %}
+      {%- if not embedded %}{% if not theme_nosidebar|tobool %}
         <div class="bodywrapper">
-      {%- endif %}
+      {%- endif %}{% endif %}
           <div class="body">
             {% block body %} {% endblock %}
           </div>
-      {%- if not embedded %}
+      {%- if not embedded %}{% if not theme_nosidebar|tobool %}
         </div>
-      {%- endif %}
+      {%- endif %}{% endif %}
       </div>
-{%- endblock %}
-
-{%- block sidebar2 %}{{ sidebar() }}{% endblock %}
+      {%- block sidebar2 %}{{ sidebar() }}{% endblock %}
       <div class="clearer"></div>
     </div>
+{%- endblock %}
 
 {%- block relbar2 %}{{ relbar() }}{% endblock %}
 
