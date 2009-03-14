@@ -43,6 +43,8 @@ new and changed files
          -C        -- use no config file at all, only -D options
          -D <setting=value> -- override a setting in configuration
          -A <name=value>    -- pass a value into the templates, for HTML builder
+         -g <path> -- auto-generate docs with sphinx.ext.autosummary
+                      for autosummary directives in sources found in path
          -N        -- do not do colored output
          -q        -- no output on stdout, just warnings on stderr
          -Q        -- no output at all, not even warnings
@@ -61,7 +63,7 @@ def main(argv):
         nocolor()
 
     try:
-        opts, args = getopt.getopt(argv[1:], 'ab:t:d:c:CD:A:NEqQWw:P')
+        opts, args = getopt.getopt(argv[1:], 'ab:t:d:c:CD:A:g:NEqQWw:P')
         allopts = set(opt[0] for opt in opts)
         srcdir = confdir = path.abspath(args[0])
         if not path.isdir(srcdir):
@@ -143,6 +145,18 @@ def main(argv):
             except ValueError:
                 pass
             htmlcontext[key] = val
+        elif opt == '-g':
+            # XXX XXX XXX
+            source_filenames = [path.join(srcdir, f)
+                                for f in os.listdir(srcdir) if f.endswith('.rst')]
+            if val is None:
+                print >>sys.stderr, \
+                      'Error: you must provide a destination directory ' \
+                      'for autodoc generation.'
+                return 1
+            p = path.abspath(val)
+            from sphinx.ext.autosummary.generate import generate_autosummary_docs
+            generate_autosummary_docs(source_filenames, p)
         elif opt == '-N':
             nocolor()
         elif opt == '-E':
