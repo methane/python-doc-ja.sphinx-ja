@@ -33,11 +33,13 @@ included, please mail to `the Google group
 * NOC: http://trac.nocproject.org/trac/wiki/NocGuide
 * NumPy: http://docs.scipy.org/doc/numpy/reference/
 * ObjectListView: http://objectlistview.sourceforge.net/python
+* Open ERP: http://doc.openerp.com/
 * OpenLayers: http://docs.openlayers.org/
 * openWNS: http://docs.openwns.org/
 * Paste: http://pythonpaste.org/script/
 * Paver: http://www.blueskyonmars.com/projects/paver/
 * Py on Windows: http://timgolden.me.uk/python-on-windows/
+* Pyccuracy: http://www.pyccuracy.org/
 * PyCuda: http://documen.tician.de/pycuda/
 * PyEphem: http://rhodesmill.org/pyephem/
 * Pyevolve: http://pyevolve.sourceforge.net/
@@ -57,12 +59,14 @@ included, please mail to `the Google group
 * Sage: http://sagemath.org/doc/
 * Satchmo: http://www.satchmoproject.com/docs/svn/
 * Scapy: http://www.secdev.org/projects/scapy/doc/
+* SciPy: http://docs.scipy.org/doc/scipy/reference/
 * Self: http://selflanguage.org/
 * SimPy: http://simpy.sourceforge.net/
 * Sphinx: http://sphinx.pocoo.org/
 * Sprox: http://sprox.org/
 * SQLAlchemy: http://www.sqlalchemy.org/docs/
 * Sqlkit: http://sqlkit.argolinux.org/
+* sqlparse: http://python-sqlparse.googlecode.com/svn/docs/api/index.html
 * SymPy: http://docs.sympy.org/
 * tinyTiM: http://tinytim.sourceforge.net/docs/2.0/
 * TurboGears: http://turbogears.org/2.0/docs/

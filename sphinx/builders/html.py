@@ -74,6 +74,8 @@ class StandaloneHTMLBuilder(Builder):
     script_files = ['_static/jquery.js', '_static/doctools.js']
 
     def init(self):
+        # cached publisher object for snippets
+        self._publisher = None
         # a hash of all config values that, if changed, cause a full rebuild
         self.config_hash = ''
         self.tags_hash = ''
@@ -182,25 +184,24 @@ class StandaloneHTMLBuilder(Builder):
         doc = new_document('<partial node>')
         doc.append(node)
 
-        # cache publisher object.
-        if 'publisher' not in self.__dict__:
-            self.publisher = Publisher(
+        if self._publisher is None:
+            self._publisher = Publisher(
                     source_class = DocTreeInput,
                     destination_class=StringOutput)
-            self.publisher.set_components('standalone',
-                    'restructuredtext', 'pseudoxml')
+            self._publisher.set_components('standalone',
+                                           'restructuredtext', 'pseudoxml')
 
-        pub = self.publisher
+        pub = self._publisher
 
         pub.reader = DoctreeReader()
         pub.writer = HTMLWriter(self)
         pub.process_programmatic_settings(
-                None, {'output_encoding': 'unicode'}, None)
+            None, {'output_encoding': 'unicode'}, None)
         pub.set_source(doc, None)
         pub.set_destination(None, None)
         pub.publish()
         return pub.writer.parts
-        
+
     def prepare_writing(self, docnames):
         from sphinx.search import IndexBuilder
 
@@ -257,6 +258,7 @@ class StandaloneHTMLBuilder(Builder):
             use_opensearch = self.config.html_use_opensearch,
             docstitle = self.config.html_title,
             shorttitle = self.config.html_short_title,
+            show_copyright = self.config.html_show_copyright,
             show_sphinx = self.config.html_show_sphinx,
             has_source = self.config.html_copy_source,
             show_source = self.config.html_show_sourcelink,
