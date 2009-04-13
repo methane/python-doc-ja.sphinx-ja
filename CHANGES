@@ -1,9 +1,13 @@
 Release 0.7 (in development)
 ============================
 
+* Added ``html_show_copyright`` config value.
 
 Release 0.6.2 (in development)
 ==============================
+
+* If specific filenames to build are given on the command line,
+  check that they are within the source directory.
 
 * Fix autodoc crash for objects without a ``__name__``.
 
