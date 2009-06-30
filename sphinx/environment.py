@@ -34,7 +34,7 @@ from docutils.io import FileInput, NullOutput
 from docutils.core import Publisher
 from docutils.utils import Reporter, relative_path
 from docutils.readers import standalone
-from docutils.parsers.rst import roles
+from docutils.parsers.rst import roles, directives
 from docutils.parsers.rst.languages import en as english
 from docutils.parsers.rst.directives.html import MetaBody
 from docutils.writers import UnfilteredWriter
@@ -45,7 +45,10 @@ from sphinx import addnodes
 from sphinx.util import movefile, get_matching_docs, SEP, ustrftime, \
      docname_join, FilenameUniqDict, url_re
 from sphinx.errors import SphinxError
+from sphinx.domains import domains
 from sphinx.directives import additional_xref_types
+
+orig_directive_function = directives.directive
 
 default_settings = {
     'embed_stylesheet': False,
@@ -59,7 +62,7 @@ default_settings = {
 
 # This is increased every time an environment attribute is added
 # or changed to properly invalidate pickle files.
-ENV_VERSION = 30
+ENV_VERSION = 31
 
 
 default_substitutions = set([
@@ -290,7 +293,6 @@ class BuildEnvironment:
 
         # X-ref target inventory
         self.descrefs = {}          # fullname -> docname, desctype
-        self.filemodules = {}       # docname -> [modules]
         self.modules = {}           # modname -> docname, synopsis,
                                     #            platform, deprecated
         self.labels = {}            # labelname -> docname, labelid, sectionname
@@ -350,7 +352,6 @@ class BuildEnvironment:
             self.toc_secnumbers.pop(docname, None)
             self.toc_num_entries.pop(docname, None)
             self.toctree_includes.pop(docname, None)
-            self.filemodules.pop(docname, None)
             self.indexentries.pop(docname, None)
             self.glob_toctrees.discard(docname)
             self.numbered_toctrees.discard(docname)
@@ -596,6 +597,25 @@ class BuildEnvironment:
                     return data + '\n' + self.config.rst_epilog + '\n'
                 else:
                     return data
+
+        # defaults to the global default, but can be re-set in a document
+        self.default_domain = domains.get(self.config.default_domain)
+
+        # monkey-patch, so that domain directives take precedence
+        def directive(directive_name, language_module, document):
+            if ':' in directive_name:
+                domain_name, directive_name = directive_name.split(':', 1)
+                if domain_name in domains:
+                    domain = domains[domain_name]
+                    if directive_name in domain.directives:
+                        return domain.directives[directive_name], []
+            elif self.default_domain is not None:
+                directive = self.default_domain.directives.get(directive_name)
+                if directive is not None:
+                    return directive, []
+            return orig_directive_function(directive_name, language_module,
+                                           document)
+        directives.directive = directive
 
         # publish manually
         pub = Publisher(reader=SphinxStandaloneReader(),
@@ -962,7 +982,6 @@ class BuildEnvironment:
 
     def note_module(self, modname, synopsis, platform, deprecated):
         self.modules[modname] = (self.docname, synopsis, platform, deprecated)
-        self.filemodules.setdefault(self.docname, []).append(modname)
 
     def note_progoption(self, optname, labelid):
         self.progoptions[self.currprogram, optname] = (self.docname, labelid)
