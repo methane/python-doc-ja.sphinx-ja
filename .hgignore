@@ -1,0 +1,13 @@
+.*\.pyc
+.*\.egg
+.*\.so
+\.DS_Store$
+^build/
+^dist/
+^tests/.coverage
+^sphinx/pycode/Grammar.*pickle
+^Sphinx.egg-info/
+^doc/_build/
+^TAGS
+^\.ropeproject/
+^env/
