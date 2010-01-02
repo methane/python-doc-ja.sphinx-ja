@@ -5,7 +5,7 @@
 
     Locale utilities.
 
-    :copyright: Copyright 2007-2009 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 import gettext
@@ -175,7 +175,7 @@ def init(locale_dirs, language):
             if translator is None:
                 translator = trans
             else:
-                translator._catalog.update(trans.catalog)
+                translator._catalog.update(trans._catalog)
         except Exception:
             # Language couldn't be found in the specified path
             pass

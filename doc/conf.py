@@ -9,8 +9,6 @@ import sys, os, re
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.todo',
               'sphinx.ext.autosummary']
 
-extlinks = {'issue': ('http://bugs.python.org/issue', 'issue ')}
-
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -22,7 +20,7 @@ master_doc = 'contents'
 
 # General substitutions.
 project = 'Sphinx'
-copyright = '2007-2009, Georg Brandl'
+copyright = '2007-2010, Georg Brandl'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
