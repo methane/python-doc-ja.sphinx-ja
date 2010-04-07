@@ -3,6 +3,8 @@ Release 1.0 (in development)
 
 * Sphinx now requires Jinja2 version 2.2 or greater.
 
+* Added Turkish translation, thanks to Firat Ozgul.
+
 * Added ``needs_sphinx`` config value and ``Sphinx.require_sphinx``
   application API function.
 
@@ -88,6 +90,20 @@ Release 1.0 (in development)
 
 Release 0.6.6 (in development)
 ==============================
+
+* Fix the handling of multiple toctrees when creating the global
+  TOC for the ``toctree()`` template function.
+
+* Fix the handling of hidden toctrees when creating the global TOC
+  for the ``toctree()`` template function.
+
+* Fix the handling of nested lists in the text writer.
+
+* #362: In autodoc, check for the existence of ``__self__`` on
+  function objects before accessing it.
+
+* #353: Strip leading and trailing whitespace when extracting
+  search words in the search function.
 
 
 Release 0.6.5 (Mar 01, 2010)
