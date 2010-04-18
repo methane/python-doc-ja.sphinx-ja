@@ -34,7 +34,7 @@ def test_core_config(app):
     # simple default values
     assert 'locale_dirs' not in cfg.__dict__
     assert cfg.locale_dirs == []
-    assert cfg.show_authors == False
+    assert cfg.trim_footnote_reference_space == False
 
     # complex default values
     assert 'html_title' not in cfg.__dict__

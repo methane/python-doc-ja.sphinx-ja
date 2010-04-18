@@ -21,6 +21,7 @@ from docutils.utils import assemble_option_dict
 from docutils.statemachine import ViewList
 
 from sphinx.util import rpartition, force_decode
+from sphinx.locale import _
 from sphinx.pycode import ModuleAnalyzer, PycodeError
 from sphinx.application import ExtensionError
 from sphinx.util.nodes import nested_parse_with_titles
@@ -399,9 +400,11 @@ class Documenter(object):
 
     def add_directive_header(self, sig):
         """Add the directive header and options to the generated content."""
+        domain = getattr(self, 'domain', 'py')
         directive = getattr(self, 'directivetype', self.objtype)
         name = self.format_name()
-        self.add_line(u'.. %s:: %s%s' % (directive, name, sig), '<autodoc>')
+        self.add_line(u'.. %s:%s:: %s%s' % (domain, directive, name, sig),
+                      '<autodoc>')
         if self.options.noindex:
             self.add_line(u'   :noindex:', '<autodoc>')
         if self.objpath:
@@ -566,9 +569,9 @@ class Documenter(object):
         do all members, else those given by *self.options.members*.
         """
         # set current namespace for finding members
-        self.env.autodoc_current_module = self.modname
+        self.env.temp_data['autodoc:module'] = self.modname
         if self.objpath:
-            self.env.autodoc_current_class = self.objpath[0]
+            self.env.temp_data['autodoc:class'] = self.objpath[0]
 
         want_all = all_members or self.options.inherited_members or \
                    self.options.members is ALL
@@ -596,12 +599,19 @@ class Documenter(object):
                               '.'.join(self.objpath + [mname])
             documenter = classes[-1](self.directive, full_mname, self.indent)
             memberdocumenters.append((documenter, isattr))
-
-        if (self.options.member_order or self.env.config.autodoc_member_order) \
-               == 'groupwise':
+        member_order = self.options.member_order or \
+                       self.env.config.autodoc_member_order
+        if member_order == 'groupwise':
             # sort by group; relies on stable sort to keep items in the
             # same group sorted alphabetically
-            memberdocumenters.sort(key=lambda d: d[0].member_order)
+            memberdocumenters.sort(key=lambda e: e[0].member_order)
+        elif member_order == 'bysource' and self.analyzer:
+            # sort by source order, by virtue of the module analyzer
+            tagorder = self.analyzer.tagorder
+            def keyfunc(entry):
+                fullname = entry[0].name.split('::')[1]
+                return tagorder.get(fullname, len(tagorder))
+            memberdocumenters.sort(key=keyfunc)
 
         for documenter, isattr in memberdocumenters:
             documenter.generate(
@@ -609,8 +619,8 @@ class Documenter(object):
                 check_module=members_check_module and not isattr)
 
         # reset current objects
-        self.env.autodoc_current_module = None
-        self.env.autodoc_current_class = None
+        self.env.temp_data['autodoc:module'] = None
+        self.env.temp_data['autodoc:class'] = None
 
     def generate(self, more_content=None, real_modname=None,
                  check_module=False, all_members=False):
@@ -763,11 +773,10 @@ class ModuleLevelDocumenter(Documenter):
             else:
                 # if documenting a toplevel object without explicit module,
                 # it can be contained in another auto directive ...
-                if hasattr(self.env, 'autodoc_current_module'):
-                    modname = self.env.autodoc_current_module
+                modname = self.env.temp_data.get('autodoc:module')
                 # ... or in the scope of a module directive
                 if not modname:
-                    modname = self.env.currmodule
+                    modname = self.env.temp_data.get('py:module')
                 # ... else, it stays None, which means invalid
         return modname, parents + [base]
 
@@ -786,21 +795,20 @@ class ClassLevelDocumenter(Documenter):
                 # if documenting a class-level object without path,
                 # there must be a current class, either from a parent
                 # auto directive ...
-                if hasattr(self.env, 'autodoc_current_class'):
-                    mod_cls = self.env.autodoc_current_class
+                mod_cls = self.env.temp_data.get('autodoc:class')
                 # ... or from a class directive
                 if mod_cls is None:
-                    mod_cls = self.env.currclass
+                    mod_cls = self.env.temp_data.get('py:class')
                 # ... if still None, there's no way to know
                 if mod_cls is None:
                     return None, []
             modname, cls = rpartition(mod_cls, '.')
             parents = [cls]
             # if the module name is still missing, get it like above
-            if not modname and hasattr(self.env, 'autodoc_current_module'):
-                modname = self.env.autodoc_current_module
             if not modname:
-                modname = self.env.currmodule
+                modname = self.env.temp_data.get('autodoc:module')
+            if not modname:
+                modname = self.env.temp_data.get('py:module')
             # ... else, it stays None, which means invalid
         return modname, parents + [base]
 
@@ -833,7 +841,10 @@ class FunctionDocumenter(ModuleLevelDocumenter):
                 argspec = inspect.getargspec(self.object.__init__)
                 if argspec[0]:
                     del argspec[0][0]
-        return inspect.formatargspec(*argspec)
+        args = inspect.formatargspec(*argspec)
+        # escape backslashes for reST
+        args = args.replace('\\', '\\\\')
+        return args
 
     def document_members(self, all_members=False):
         pass
@@ -1144,7 +1155,7 @@ class AutoDirective(Directive):
         # record all filenames as dependencies -- this will at least
         # partially make automatic invalidation possible
         for fn in self.filename_set:
-            self.env.note_dependency(fn)
+            self.state.document.settings.record_dependencies.add(fn)
 
         # use a custom reporter that correctly assigns lines to source
         # filename/description and lineno

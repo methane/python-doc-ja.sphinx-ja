@@ -11,12 +11,12 @@ File-wide metadata
 reST has the concept of "field lists"; these are a sequence of fields marked up
 like this::
 
-   :Field name: Field content
+   :fieldname: Field content
 
-A field list at the very top of a file is parsed as the "docinfo", which in
-normal documents can be used to record the author, date of publication and
-other metadata.  In Sphinx, the docinfo is used as metadata, too, but not
-displayed in the output.
+A field list at the very top of a file is parsed by docutils as the "docinfo",
+which is normally used to record the author, date of publication and other
+metadata.  *In Sphinx*, the docinfo is used as metadata, too, but not displayed
+in the output.
 
 At the moment, these metadata fields are recognized:
 
@@ -29,11 +29,17 @@ At the moment, these metadata fields are recognized:
    If set, the web application won't display a comment form for a page generated
    from this source file.
 
+``orphan``
+   If set, warnings about this file not being included in any toctree will be
+   suppressed.
+
+   .. versionadded:: 1.0
+
 
 Meta-information markup
 -----------------------
 
-.. directive:: sectionauthor
+.. rst:directive:: .. sectionauthor:: name <email>
 
    Identifies the author of the current section.  The argument should include
    the author's name such that it can be used for presentation and email
@@ -48,12 +54,20 @@ Meta-information markup
    output.
 
 
+.. rst:directive:: .. codeauthor:: name <email>
+
+   The :rst:dir:`codeauthor` directive, which can appear multiple times, names the
+   authors of the described code, just like :rst:dir:`sectionauthor` names the
+   author(s) of a piece of documentation.  It too only produces output if the
+   :confval:`show_authors` configuration value is True.
+
+
 .. _tags:
 
 Including content based on tags
 -------------------------------
 
-.. directive:: .. only:: <expression>
+.. rst:directive:: .. only:: <expression>
 
    Include the content of the directive only if the *expression* is true.  The
    expression should consist of tags, like this::
@@ -73,12 +87,12 @@ Including content based on tags
 Tables
 ------
 
-Use standard reStructuredText tables.  They work fine in HTML output, however
-there are some gotchas when using tables in LaTeX: the column width is hard to
-determine correctly automatically.  For this reason, the following directive
-exists:
+Use :ref:`standard reStructuredText tables <rst-tables>`.  They work fine in
+HTML output, however there are some gotchas when using tables in LaTeX: the
+column width is hard to determine correctly automatically.  For this reason, the
+following directive exists:
 
-.. directive:: .. tabularcolumns:: column spec
+.. rst:directive:: .. tabularcolumns:: column spec
 
    This directive gives a "column spec" for the next table occurring in the
    source file.  The spec is the second argument to the LaTeX ``tabulary``
@@ -114,5 +128,5 @@ exists:
    therefore set with the standard LaTeX ``tabular`` environment.  Also, the
    verbatim environment used for literal blocks only works in ``p{width}``
    columns, which means that by default, Sphinx generates such column specs for
-   such tables.  Use the :dir:`tabularcolumns` directive to get finer control
+   such tables.  Use the :rst:dir:`tabularcolumns` directive to get finer control
    over such tables.

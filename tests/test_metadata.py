@@ -16,7 +16,6 @@ from util import *
 
 from nose.tools import assert_equals
 
-from sphinx.environment import BuildEnvironment
 
 app = env = None
 warnings = []
@@ -25,9 +24,7 @@ def setup_module():
     # Is there a better way of generating this doctree than manually iterating?
     global app, env
     app = TestApp(srcdir='(temp)')
-    env = BuildEnvironment(app.srcdir, app.doctreedir, app.config)
-    # Huh. Why do I need to do this?
-    env.set_warnfunc(lambda *args: warnings.append(args))
+    env = app.env
     msg, num, it = env.update(app.config, app.srcdir, app.doctreedir, app)
     for docname in it:
         pass

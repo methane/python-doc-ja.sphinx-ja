@@ -22,7 +22,6 @@ except ImportError:
 
 from sphinx import __version__
 from util import *
-from test_build import ENV_WARNINGS
 from etree13 import ElementTree as ET
 
 
@@ -31,6 +30,15 @@ def teardown_module():
 
 
 html_warnfile = StringIO()
+
+ENV_WARNINGS = """\
+%(root)s/images.txt:9: WARNING: image file not readable: foo.png
+%(root)s/images.txt:23: WARNING: nonlocal image URI found: \
+http://www.python.org/logo.png
+%(root)s/includes.txt:: (WARNING/2) Encoding 'utf-8-sig' used for reading \
+included file u'wrongenc.inc' seems to be wrong, try giving an :encoding: option
+%(root)s/includes.txt:4: WARNING: download file not readable: nonexisting.png
+"""
 
 HTML_WARNINGS = ENV_WARNINGS + """\
 %(root)s/images.txt:20: WARNING: no matching candidate for image URI u'foo.*'
@@ -66,26 +74,87 @@ HTML_XPATH = {
         ".//dt[@id='test_autodoc.function']/em": r'\*\*kwds',
         ".//dd": r'Return spam\.',
     },
+    'extapi.html': {
+        ".//strong": 'from function: Foo',
+        ".//strong": 'from class: Bar',
+    },
     'markup.html': {
+        ".//title": 'set by title directive',
+        ".//p/em": 'Section author: Georg Brandl',
+        ".//p/em": 'Module author: Georg Brandl',
+        # created by the meta directive
         ".//meta[@name='author'][@content='Me']": '',
         ".//meta[@name='keywords'][@content='docs, sphinx']": '',
-        ".//a[@href='contents.html#ref1']": '',
+        # a label created by ``.. _label:``
         ".//div[@id='label']": '',
+        # code with standard code blocks
+        ".//pre": '^some code$',
+        # an option list
         ".//span[@class='option']": '--help',
+        # admonitions
+        ".//p[@class='first admonition-title']": 'My Admonition',
+        ".//p[@class='last']": 'Note text.',
+        ".//p[@class='last']": 'Warning text.',
+        # inline markup
+        ".//li/strong": '^command$',
+        ".//li/strong": '^program$',
+        ".//li/em": '^dfn$',
+        ".//li/tt/span[@class='pre']": '^kbd$',
+        ".//li/em": u'File \N{TRIANGULAR BULLET} Close',
+        ".//li/tt/span[@class='pre']": '^a/$',
+        ".//li/tt/em/span[@class='pre']": '^varpart$',
+        ".//li/tt/em/span[@class='pre']": '^i$',
+        ".//a[@href='http://www.python.org/dev/peps/pep-0008']/strong": 'PEP 8',
+        ".//a[@href='http://tools.ietf.org/html/rfc1.html']/strong": 'RFC 1',
+        ".//a[@href='objects.html#envvar-HOME']/tt/span[@class='pre']": 'HOME',
+        ".//a[@href='#with']/tt/span[@class='pre']": '^with$',
+        ".//a[@href='#grammar-token-try_stmt']/tt/span": '^statement$',
+        ".//a[@href='subdir/includes.html']/em": 'Including in subdir',
+        ".//a[@href='objects.html#cmdoption-python-c']/em": 'Python -c option',
+        # abbreviations
+        ".//abbr[@title='abbreviation']": '^abbr$',
+        # version stuff
+        ".//span[@class='versionmodified']": 'New in version 0.6',
+        # footnote reference
+        ".//a[@class='footnote-reference']": r'\[1\]',
+        # created by reference lookup
+        ".//a[@href='contents.html#ref1']": '',
+        # ``seealso`` directive
+        ".//div/p[@class='first admonition-title']": 'See also',
+        # a ``hlist`` directive
+        ".//table[@class='hlist']/tr/td/ul/li": '^This$',
+        # a ``centered`` directive
+        ".//p[@class='centered']/strong": 'LICENSE',
+        # a glossary
+        ".//dl/dt[@id='term-boson']": 'boson',
+        # a production list
+        ".//pre/strong": 'try_stmt',
+        ".//pre/a[@href='#grammar-token-try1_stmt']/tt/span": 'try1_stmt',
+        # tests for ``only`` directive
         ".//p": 'A global substitution.',
         ".//p": 'In HTML.',
         ".//p": 'In both.',
         ".//p": 'Always present',
-        ".//title": 'set by title directive',
-        ".//span[@class='pre']": 'CFunction()',
     },
-    'desc.html': {
+    'objects.html': {
         ".//dt[@id='mod.Cls.meth1']": '',
         ".//dt[@id='errmod.Error']": '',
         ".//a[@href='#mod.Cls']": '',
         ".//dl[@class='userdesc']": '',
-        ".//dt[@id='userdescrole-myobj']": '',
-        ".//a[@href='#userdescrole-myobj']": '',
+        ".//dt[@id='userdesc-myobj']": '',
+        ".//a[@href='#userdesc-myobj']": '',
+        # C references
+        ".//span[@class='pre']": 'CFunction()',
+        ".//a[@href='#Sphinx_DoSomething']": '',
+        ".//a[@href='#SphinxStruct.member']": '',
+        ".//a[@href='#SPHINX_USE_PYTHON']": '',
+        ".//a[@href='#SphinxType']": '',
+        ".//a[@href='#sphinx_global']": '',
+        # test global TOC created by toctree()
+        ".//ul[@class='current']/li[@class='toctree-l1 current']/a[@href='']":
+            'Testing object descriptions',
+        ".//li[@class='toctree-l1']/a[@href='markup.html']":
+            'Testing various markup',
         # custom sidebar
         ".//h4": 'Custom sidebar',
     },
@@ -93,13 +162,16 @@ HTML_XPATH = {
         ".//meta[@name='hc'][@content='hcval']": '',
         ".//meta[@name='hc_co'][@content='hcval_co']": '',
         ".//meta[@name='testopt'][@content='testoverride']": '',
-        #".//td[@class='label']": r'\[Ref1\]',   # docutils 0.5 only
+        ".//td[@class='label']": r'\[Ref1\]',
         ".//td[@class='label']": '',
         ".//li[@class='toctree-l1']/a": 'Testing various markup',
-        ".//li[@class='toctree-l2']/a": 'Admonitions',
+        ".//li[@class='toctree-l2']/a": 'Inline markup',
         ".//title": 'Sphinx <Tests>',
         ".//div[@class='footer']": 'Georg Brandl & Team',
         ".//a[@href='http://python.org/']": '',
+        ".//li/a[@href='genindex.html']/em": 'Index',
+        ".//li/a[@href='py-modindex.html']/em": 'Module Index',
+        ".//li/a[@href='search.html']/em": 'Search Page',
         # custom sidebar only for contents
         ".//h4": 'Contents sidebar',
     },

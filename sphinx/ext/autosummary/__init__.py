@@ -63,7 +63,7 @@ from docutils.parsers.rst import directives
 from docutils.statemachine import ViewList
 from docutils import nodes
 
-from sphinx import addnodes, roles
+from sphinx import addnodes
 from sphinx.util.compat import Directive
 
 
@@ -192,7 +192,6 @@ class Autosummary(Directive):
 
         if 'toctree' in self.options:
             suffix = env.config.source_suffix
-            all_docnames = env.found_docs.copy()
             dirname = posixpath.dirname(env.docname)
 
             tree_prefix = self.options['toctree'].strip()
@@ -226,8 +225,9 @@ class Autosummary(Directive):
         env = self.state.document.settings.env
 
         prefixes = ['']
-        if env.currmodule:
-            prefixes.insert(0, env.currmodule)
+        currmodule = env.temp_data.get('py:module')
+        if currmodule:
+            prefixes.insert(0, currmodule)
 
         items = []
 
@@ -441,8 +441,9 @@ def autolink_role(typ, rawtext, etext, lineno, inliner,
     Expands to ':obj:`text`' if `text` is an object that can be imported;
     otherwise expands to '*text*'.
     """
-    r = roles.xfileref_role('obj', rawtext, etext, lineno, inliner,
-                            options, content)
+    env = inliner.document.settings.env
+    r = env.get_domain('py').role('obj')(
+        'obj', rawtext, etext, lineno, inliner, options, content)
     pnode = r[0][0]
 
     prefixes = [None]
@@ -485,11 +486,13 @@ def setup(app):
     app.add_node(autosummary_toc,
                  html=(autosummary_toc_visit_html, autosummary_noop),
                  latex=(autosummary_noop, autosummary_noop),
-                 text=(autosummary_noop, autosummary_noop))
+                 text=(autosummary_noop, autosummary_noop),
+                 man=(autosummary_noop, autosummary_noop))
     app.add_node(autosummary_table,
                  html=(autosummary_table_visit_html, autosummary_noop),
                  latex=(autosummary_noop, autosummary_noop),
-                 text=(autosummary_noop, autosummary_noop))
+                 text=(autosummary_noop, autosummary_noop),
+                 man=(autosummary_noop, autosummary_noop))
     app.add_directive('autosummary', Autosummary)
     app.add_role('autolink', autolink_role)
     app.connect('doctree-read', process_autosummary_toc)

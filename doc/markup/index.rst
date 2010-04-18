@@ -1,3 +1,5 @@
+.. _sphinxmarkup:
+
 Sphinx Markup Constructs
 ========================
 
@@ -6,8 +8,10 @@ markup.  This section contains the reference material for these facilities.
 
 .. toctree::
 
-   desc
+   toctree
    para
    code
    inline
    misc
+
+More markup is added by :ref:`domains`.

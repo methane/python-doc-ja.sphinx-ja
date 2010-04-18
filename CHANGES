@@ -1,6 +1,35 @@
 Release 1.0 (in development)
 ============================
 
+* Support for domains has been added.  A domain is a collection of
+  directives and roles that all describe objects belonging together,
+  e.g. elements of a programming language.  Builtin domains are
+  provided for Python and C objects.
+
+* Added a JavaScript domain.
+
+* Support for docutils 0.4 has been removed.
+
+* Added a manual page builder.
+
+* Added support for source ordering of members in autodoc, with
+  ``autodoc_member_order = 'bysource'``.
+
+* In HTML output, inline roles now get a CSS class with their name,
+  allowing styles to customize their appearance.  Domain-specific
+  roles get two classes, ``domain`` and ``domain-rolename``.
+
+* New more compact doc field syntax is now recognized:
+  ``:param type name: description``.
+
+* Added a "nitpicky" mode that emits warnings for all missing
+  references.  It is activated by the ``-n`` command-line switch
+  or the ``nitpicky`` config value.
+
+* Added the ``viewcode`` extension.
+
+* Added ``html-collect-pages`` event.
+
 * Sphinx now requires Jinja2 version 2.2 or greater.
 
 * Added Turkish translation, thanks to Firat Ozgul.
@@ -60,6 +89,11 @@ Release 1.0 (in development)
 
 * Added new HTML theme ``scrolls``, created by Armin Ronacher.
 
+* The ``toctree()`` callable in templates now has a ``maxdepth``
+  keyword argument to control the depth of the generated tree.
+
+* Added Catalan translation, thanks to Pau Fernández.
+
 * Added ``html_output_encoding`` config value.
 
 * #200: Added ``Sphinx.add_stylesheet()``.
@@ -98,6 +132,16 @@ Release 1.0 (in development)
 
 Release 0.6.6 (in development)
 ==============================
+
+* #387: Fix the display of search results in ``dirhtml`` output.
+
+* #376: In autodoc, fix display of parameter defaults containing
+  backslashes.
+
+* #370: Fix handling of complex list item labels in LaTeX output.
+
+* #374: Make the ``doctest_path`` config value of the doctest
+  extension actually work.
 
 * Fix the handling of multiple toctrees when creating the global
   TOC for the ``toctree()`` template function.

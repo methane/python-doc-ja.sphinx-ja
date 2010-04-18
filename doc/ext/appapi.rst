@@ -43,20 +43,42 @@ the following public API:
       ``'env'``) to a string.  However, booleans are still accepted and
       converted internally.
 
+.. method:: Sphinx.add_domain(domain)
+
+   Make the given *domain* (which must be a class; more precisely, a subclass of
+   :class:`~sphinx.domains.Domain`) known to Sphinx.
+
+   .. versionadded:: 1.0
+
+.. method:: Sphinx.override_domain(domain)
+
+   Make the given *domain* class known to Sphinx, assuming that there is already
+   a domain with its ``.name``.  The new domain must be a subclass of the
+   existing one.
+
+   .. versionadded:: 1.0
+
+.. method:: Sphinx.add_index_to_domain(domain, index)
+
+   Add a custom *index* class to the domain named *domain*.  *index* must be a
+   subclass of :class:`~sphinx.domains.Index`.
+
+   .. versionadded:: 1.0
+
 .. method:: Sphinx.add_event(name)
 
-   Register an event called *name*.
+   Register an event called *name*.  This is needed to be able to emit it.
 
 .. method:: Sphinx.add_node(node, **kwds)
 
    Register a Docutils node class.  This is necessary for Docutils internals.
    It may also be used in the future to validate nodes in the parsed documents.
 
-   Node visitor functions for the Sphinx HTML, LaTeX and text writers can be
-   given as keyword arguments: the keyword must be one or more of ``'html'``,
-   ``'latex'``, ``'text'``, the value a 2-tuple of ``(visit, depart)`` methods.
-   ``depart`` can be ``None`` if the ``visit`` function raises
-   :exc:`docutils.nodes.SkipNode`.  Example:
+   Node visitor functions for the Sphinx HTML, LaTeX, text and manpage writers
+   can be given as keyword arguments: the keyword must be one or more of
+   ``'html'``, ``'latex'``, ``'text'``, ``'man'``, the value a 2-tuple of
+   ``(visit, depart)`` methods.  ``depart`` can be ``None`` if the ``visit``
+   function raises :exc:`docutils.nodes.SkipNode`.  Example:
 
    .. code-block:: python
 
@@ -81,10 +103,10 @@ the following public API:
    Register a Docutils directive.  *name* must be the prospective directive
    name.  There are two possible ways to write a directive:
 
-   * In the docutils 0.4 style, *func* is the directive function.  *content*,
+   * In the docutils 0.4 style, *obj* is the directive function.  *content*,
      *arguments* and *options* are set as attributes on the function and
      determine whether the directive has content, arguments and options,
-     respectively.
+     respectively.  **This style is deprecated.**
 
    * In the docutils 0.5 style, *directiveclass* is the directive class.  It
      must already have attributes named *has_content*, *required_arguments*,
@@ -99,7 +121,7 @@ the following public API:
      instead which does the right thing even on docutils 0.4 (which doesn't
      support directive classes otherwise).
 
-   For example, the (already existing) :dir:`literalinclude` directive would be
+   For example, the (already existing) :rst:dir:`literalinclude` directive would be
    added like this:
 
    .. code-block:: python
@@ -114,11 +136,25 @@ the following public API:
    .. versionchanged:: 0.6
       Docutils 0.5-style directive classes are now supported.
 
+.. method:: Sphinx.add_directive_to_domain(domain, name, func, content, arguments, **options)
+            Sphinx.add_directive_to_domain(domain, name, directiveclass)
+
+   Like :meth:`add_directive`, but the directive is added to the domain named
+   *domain*.
+
+   .. versionadded:: 1.0
+
 .. method:: Sphinx.add_role(name, role)
 
    Register a Docutils role.  *name* must be the role name that occurs in the
    source, *role* the role function (see the `Docutils documentation
    <http://docutils.sourceforge.net/docs/howto/rst-roles.html>`_ on details).
+
+.. method:: Sphinx.add_role_to_domain(domain, name, role)
+
+   Like :meth:`add_role`, but the role is added to the domain named *domain*.
+
+   .. versionadded:: 1.0
 
 .. method:: Sphinx.add_generic_role(name, nodeclass)
 
@@ -127,36 +163,38 @@ the following public API:
 
    .. versionadded:: 0.6
 
-.. method:: Sphinx.add_description_unit(directivename, rolename, indextemplate='', parse_node=None, ref_nodeclass=None)
+.. method:: Sphinx.add_object_type(directivename, rolename, indextemplate='', parse_node=None, ref_nodeclass=None, objname='')
 
-   This method is a very convenient way to add a new type of information that
+   This method is a very convenient way to add a new :term:`object` type that
    can be cross-referenced.  It will do this:
 
-   * Create a new directive (called *directivename*) for a :term:`description
-     unit`.  It will automatically add index entries if *indextemplate* is
-     nonempty; if given, it must contain exactly one instance of ``%s``.  See
-     the example below for how the template will be interpreted.
+   * Create a new directive (called *directivename*) for documenting an object.
+     It will automatically add index entries if *indextemplate* is nonempty; if
+     given, it must contain exactly one instance of ``%s``.  See the example
+     below for how the template will be interpreted.
    * Create a new role (called *rolename*) to cross-reference to these
-     description units.
+     object descriptions.
    * If you provide *parse_node*, it must be a function that takes a string and
      a docutils node, and it must populate the node with children parsed from
      the string.  It must then return the name of the item to be used in
      cross-referencing and index entries.  See the :file:`conf.py` file in the
      source for this documentation for an example.
+   * The *objname* (if not given, will default to *directivename*) names the
+     type of object.  It is used when listing objects, e.g. in search results.
 
    For example, if you have this call in a custom Sphinx extension::
 
-      app.add_description_unit('directive', 'dir', 'pair: %s; directive')
+      app.add_object_type('directive', 'dir', 'pair: %s; directive')
 
    you can use this markup in your documents::
 
-      .. directive:: function
+      .. rst:directive:: function
 
          Document a function.
 
       <...>
 
-      See also the :dir:`function` directive.
+      See also the :rst:dir:`function` directive.
 
    For the directive, an index entry will be generated as if you had prepended ::
 
@@ -168,16 +206,19 @@ the following public API:
    ``docutils.nodes.emphasis`` or ``docutils.nodes.strong`` -- you can also use
    ``docutils.nodes.generated`` if you want no further text decoration).
 
-   For the role content, you have the same options as for standard Sphinx roles
-   (see :ref:`xref-syntax`).
+   For the role content, you have the same syntactical possibilities as for
+   standard Sphinx roles (see :ref:`xref-syntax`).
 
-.. method:: Sphinx.add_crossref_type(directivename, rolename, indextemplate='', ref_nodeclass=None)
+   This method is also available under the deprecated alias
+   :meth:`add_description_unit`.
 
-   This method is very similar to :meth:`add_description_unit` except that the
+.. method:: Sphinx.add_crossref_type(directivename, rolename, indextemplate='', ref_nodeclass=None, objname='')
+
+   This method is very similar to :meth:`add_object_type` except that the
    directive it generates must be empty, and will produce no output.
 
    That means that you can add semantic targets to your sources, and refer to
-   them using custom roles instead of generic ones (like :role:`ref`).  Example
+   them using custom roles instead of generic ones (like :rst:role:`ref`).  Example
    call::
 
       app.add_crossref_type('topic', 'topic', 'single: %s', docutils.nodes.emphasis)
@@ -264,8 +305,7 @@ the following public API:
 .. method:: Sphinx.emit_firstresult(event, *arguments)
 
    Emit *event* and pass *arguments* to the callback functions.  Return the
-   result of the first callback that doesn't return ``None`` (and don't call
-   the rest of the callbacks).
+   result of the first callback that doesn't return ``None``.
 
    .. versionadded:: 0.5
 
@@ -363,7 +403,15 @@ registered event handlers.
 
    .. versionadded:: 0.5
 
-.. event:: page-context (app, pagename, templatename, context, doctree)
+.. event:: html-collect-pages (app)
+
+   Emitted when the HTML builder is starting to write non-document pages.  You
+   can add pages to write by returning an iterable from this event consisting of
+   ``(pagename, context, templatename)``.
+
+   .. versionadded:: 1.0
+
+.. event:: html-page-context (app, pagename, templatename, context, doctree)
 
    Emitted when the HTML builder has created a context dictionary to render a
    template with -- this can be used to add custom elements to the context.
@@ -401,4 +449,20 @@ The template bridge
 -------------------
 
 .. autoclass:: TemplateBridge
+   :members:
+
+
+.. _domain-api:
+
+Domain API
+----------
+
+.. module:: sphinx.domains
+
+.. autoclass:: Domain
+   :members:
+
+.. autoclass:: ObjType
+
+.. autoclass:: Index
    :members:

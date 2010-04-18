@@ -316,7 +316,7 @@ dd {
     margin-left: 30px;
 }
 
-dt:target, .highlight {
+dt:target, .highlighted {
     background-color: #fbe54e;
 }
 
@@ -406,6 +406,20 @@ tt.xref, a tt {
 
 h1 tt, h2 tt, h3 tt, h4 tt, h5 tt, h6 tt {
     background-color: transparent;
+}
+
+.viewcode-link {
+    float: right;
+}
+
+.viewcode-back {
+    float: right;
+    font-family: sans-serif;
+}
+
+div.viewcode-block:target {
+    margin: -1px -10px;
+    padding: 0 10px;
 }
 
 /* -- math display ---------------------------------------------------------- */

@@ -164,7 +164,7 @@ html_static_path = ['%(dot)sstatic']
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-#html_use_modindex = True
+#html_domain_indices = True
 
 # If false, no index is generated.
 #html_use_index = True
@@ -223,16 +223,28 @@ latex_documents = [
 #latex_appendices = []
 
 # If false, no module index is generated.
-#latex_use_modindex = True
+#latex_domain_indices = True
 
+
+# -- Options for manual page output --------------------------------------------
+
+# One entry per manual page. List of tuples
+# (source start file, name, description, authors, manual section).
+man_pages = [
+    ('%(master_str)s', '%(project_manpage)s', u'%(project_doc)s',
+     [u'%(author_str)s'], 1)
+]
+'''
+
+EPUB_CONFIG = '''
 
 # -- Options for Epub output ---------------------------------------------------
 
 # Bibliographic Dublin Core info.
-#epub_title = ''
-#epub_author = ''
-#epub_publisher = ''
-#epub_copyright = ''
+epub_title = u'%(project_str)s'
+epub_author = u'%(author_str)s'
+epub_publisher = u'%(author_str)s'
+epub_copyright = u'%(copyright_str)s'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
@@ -308,8 +320,8 @@ PAPEROPT_letter = -D latex_paper_size=letter
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) \
 $(SPHINXOPTS) %(rsrcdir)s
 
-.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp epub \
-latex changes linkcheck doctest
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp \
+epub latex latexpdf text man changes linkcheck doctest
 
 help:
 \t@echo "Please use \\`make <target>' where <target> is one of"
@@ -324,6 +336,8 @@ help:
 \t@echo "  epub       to make an epub"
 \t@echo "  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
 \t@echo "  latexpdf   to make LaTeX files and run them through pdflatex"
+\t@echo "  text       to make text files"
+\t@echo "  man        to make manual pages"
 \t@echo "  changes    to make an overview of all changed/added/deprecated items"
 \t@echo "  linkcheck  to check all external links for integrity"
 \t@echo "  doctest    to run all doctests embedded in the documentation \
@@ -373,12 +387,12 @@ qthelp:
 \t@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/%(project_fn)s.qhc"
 
 devhelp:
-\t$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) %(rbuilddir)s/devhelp
+\t$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
 \t@echo
 \t@echo "Build finished."
 \t@echo "To view the help file:"
 \t@echo "# mkdir -p $$HOME/.local/share/devhelp/%(project_fn)s"
-\t@echo "# ln -s %(rbuilddir)s/devhelp\
+\t@echo "# ln -s $(BUILDDIR)/devhelp\
  $$HOME/.local/share/devhelp/%(project_fn)s"
 \t@echo "# devhelp"
 
@@ -395,10 +409,20 @@ latex:
 \t      "run these through (pdf)latex."
 
 latexpdf: latex
-\t$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) %(rbuilddir)s/latex
+\t$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 \t@echo "Running LaTeX files through pdflatex..."
-\tmake -C %(rbuilddir)s/latex all-pdf
-\t@echo "pdflatex finished; the PDF files are in %(rbuilddir)s/latex."
+\tmake -C $(BUILDDIR)/latex all-pdf
+\t@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
+
+text:
+\t$(SPHINXBUILD) -b text $(ALLSPHINXOPTS) $(BUILDDIR)/text
+\t@echo
+\t@echo "Build finished. The text files are in $(BUILDDIR)/text."
+
+man:
+\t$(SPHINXBUILD) -b man $(ALLSPHINXOPTS) $(BUILDDIR)/man
+\t@echo
+\t@echo "Build finished. The manual pages are in $(BUILDDIR)/man."
 
 changes:
 \t$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) $(BUILDDIR)/changes
@@ -446,6 +470,8 @@ if "%%1" == "help" (
 \techo.  devhelp    to make HTML files and a Devhelp project
 \techo.  epub       to make an epub
 \techo.  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter
+\techo.  text       to make text files
+\techo.  man        to make manual pages
 \techo.  changes    to make an overview over all changed/added/deprecated items
 \techo.  linkcheck  to check all external links for integrity
 \techo.  doctest    to run all doctests embedded in the documentation if enabled
@@ -513,7 +539,7 @@ if "%%1" == "qthelp" (
 )
 
 if "%%1" == "devhelp" (
-\t%%SPHINXBUILD%% -b devhelp %%ALLSPHINXOPTS%% %(rbuilddir)s/devhelp
+\t%%SPHINXBUILD%% -b devhelp %%ALLSPHINXOPTS%% %%BUILDDIR%%/devhelp
 \techo.
 \techo.Build finished.
 \tgoto end
@@ -530,6 +556,20 @@ if "%%1" == "latex" (
 \t%%SPHINXBUILD%% -b latex %%ALLSPHINXOPTS%% %%BUILDDIR%%/latex
 \techo.
 \techo.Build finished; the LaTeX files are in %%BUILDDIR%%/latex.
+\tgoto end
+)
+
+if "%%1" == "text" (
+\t%%SPHINXBUILD%% -b text %%ALLSPHINXOPTS%% %%BUILDDIR%%/text
+\techo.
+\techo.Build finished. The text files are in %%BUILDDIR%%/text.
+\tgoto end
+)
+
+if "%%1" == "man" (
+\t%%SPHINXBUILD%% -b man %%ALLSPHINXOPTS%% %%BUILDDIR%%/man
+\techo.
+\techo.Build finished. The manual pages are in %%BUILDDIR%%/man.
 \tgoto end
 )
 
@@ -706,6 +746,11 @@ document is a custom template, you can also set this to another filename.'''
                   'existing file and press Enter', d['master'])
 
     print '''
+Sphinx can also add configuration for epub output:'''
+    do_prompt(d, 'epub', 'Do you want to use the epub builder (y/N)',
+              'n', boolean)
+
+    print '''
 Please indicate if you want to use one of the following Sphinx extensions:'''
     do_prompt(d, 'ext_autodoc', 'autodoc: automatically insert docstrings '
               'from modules (y/N)', 'n', boolean)
@@ -726,6 +771,8 @@ Please indicate if you want to use one of the following Sphinx extensions:'''
 pngmath has been deselected.'''
     do_prompt(d, 'ext_ifconfig', 'ifconfig: conditional inclusion of '
               'content based on config values (y/N)', 'n', boolean)
+    do_prompt(d, 'ext_viewcode', 'viewcode: include links to the source code '
+              'of documented Python objects (y/N)', 'n', boolean)
     print '''
 A Makefile and a Windows command file can be generated for you so that you
 only have to run e.g. `make html' instead of invoking sphinx-build
@@ -735,12 +782,13 @@ directly.'''
               'y', boolean)
 
     d['project_fn'] = make_filename(d['project'])
+    d['project_manpage'] = d['project_fn'].lower()
     d['now'] = time.asctime()
     d['underline'] = len(d['project']) * '='
     d['extensions'] = ', '.join(
         repr('sphinx.ext.' + name)
         for name in ('autodoc', 'doctest', 'intersphinx', 'todo', 'coverage',
-                     'pngmath', 'jsmath', 'ifconfig')
+                     'pngmath', 'jsmath', 'ifconfig', 'viewcode')
         if d['ext_' + name])
     d['copyright'] = time.strftime('%Y') + ', ' + d['author']
     d['author_texescaped'] = unicode(d['author']).\
@@ -751,7 +799,7 @@ directly.'''
 
     # escape backslashes and single quotes in strings that are put into
     # a Python string literal
-    for key in ('project', 'copyright', 'author_texescaped',
+    for key in ('project', 'copyright', 'author', 'author_texescaped',
                 'project_doc_texescaped', 'version', 'release', 'master'):
         d[key + '_str'] = d[key].replace('\\', '\\\\').replace("'", "\\'")
 
@@ -772,6 +820,8 @@ directly.'''
     mkdir_p(path.join(srcdir, d['dot'] + 'static'))
 
     conf_text = QUICKSTART_CONF % d
+    if d['epub']:
+        conf_text += EPUB_CONFIG % d
     if d['ext_intersphinx']:
         conf_text += INTERSPHINX_CONFIG
 

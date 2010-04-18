@@ -28,6 +28,8 @@ def setup_module():
         components=(rst.Parser, HTMLWriter, LaTeXWriter))
     settings = optparser.get_default_values()
     settings.env = app.builder.env
+    settings.env.patch_lookup_functions()
+    settings.env.temp_data['docname'] = 'dummy'
     parser = rst.Parser()
 
 def teardown_module():
@@ -59,7 +61,7 @@ def verify_re(rst, html_expected, latex_expected):
         html_translator = ForgivingHTMLTranslator(app.builder, document)
         document.walkabout(html_translator)
         html_translated = ''.join(html_translator.fragment).strip()
-        assert re.match(html_expected, html_translated), 'from' + rst
+        assert re.match(html_expected, html_translated), 'from ' + rst
 
     if latex_expected:
         latex_translator = ForgivingLaTeXTranslator(document, app.builder)
@@ -78,26 +80,26 @@ def verify(rst, html_expected, latex_expected):
 
 def test_inline():
     # correct interpretation of code with whitespace
-    _html = ('<p><tt class="docutils literal"><span class="pre">'
+    _html = ('<p><tt class="(samp )?docutils literal"><span class="pre">'
              'code</span>&nbsp;&nbsp; <span class="pre">sample</span></tt></p>')
-    yield verify, '``code   sample``', _html, '\\code{code   sample}'
-    yield verify, ':samp:`code   sample`', _html, '\\samp{code   sample}'
+    yield verify_re, '``code   sample``', _html, r'\\code{code   sample}'
+    yield verify_re, ':samp:`code   sample`', _html, r'\\samp{code   sample}'
 
     # interpolation of braces in samp and file roles (HTML only)
     yield (verify, ':samp:`a{b}c`',
-           '<p><tt class="docutils literal"><span class="pre">a</span>'
+           '<p><tt class="samp docutils literal"><span class="pre">a</span>'
            '<em><span class="pre">b</span></em>'
            '<span class="pre">c</span></tt></p>',
            '\\samp{abc}')
 
     # interpolation of arrows in menuselection
     yield (verify, ':menuselection:`a --> b`',
-           u'<p><em>a \N{TRIANGULAR BULLET} b</em></p>',
+           u'<p><em class="menuselection">a \N{TRIANGULAR BULLET} b</em></p>',
            '\\emph{a \\(\\rightarrow\\) b}')
 
     # non-interpolation of dashes in option role
     yield (verify_re, ':option:`--with-option`',
-           '<p><em( class="xref")?>--with-option</em></p>$',
+           '<p><em( class="xref std std-option")?>--with-option</em></p>$',
            r'\\emph{\\texttt{-{-}with-option}}$')
 
     # verify smarty-pants quotes
@@ -107,6 +109,11 @@ def test_inline():
            '<p><tt class="docutils literal"><span class="pre">'
            '&quot;John&quot;</span></tt></p>',
            '\\code{"John"}')
+
+    # verify classes for inline roles
+    yield (verify, ':manpage:`mp(1)`',
+           '<p><em class="manpage">mp(1)</em></p>',
+           '\\emph{\\texttt{mp(1)}}')
 
 def test_latex_escaping():
     # correct escaping in normal mode
@@ -118,5 +125,5 @@ def test_latex_escaping():
            u'@PYGZat[]@(@Gamma@)\\@(@infty@)@$@PYGZlb[]@PYGZrb[]\n'
            u'\\end{Verbatim}')
     # in URIs
-    yield (verify, u'`test <http://example.com/~me/>`_', None,
-           u'\\href{http://example.com/~me/}{test}')
+    yield (verify_re, u'`test <http://example.com/~me/>`_', None,
+           ur'\\href{http://example.com/~me/}{test}.*')

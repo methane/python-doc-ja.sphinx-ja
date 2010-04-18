@@ -14,7 +14,7 @@ from docutils import nodes
 # index markup
 class index(nodes.Invisible, nodes.Inline, nodes.TextElement): pass
 
-# description units (classdesc, funcdesc etc.)
+# domain-specific object descriptions (class, function etc.)
 
 # parent node for signature and content
 class desc(nodes.Admonition, nodes.Element): pass
@@ -89,9 +89,6 @@ class abbreviation(nodes.Inline, nodes.TextElement): pass
 
 # glossary
 class glossary(nodes.Element): pass
-
-# module declaration
-class module(nodes.Element): pass
 
 # start of a file, used in the LaTeX builder only
 class start_of_file(nodes.Element): pass

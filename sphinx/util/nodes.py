@@ -12,10 +12,13 @@
 import re
 import types
 
+from docutils import nodes
+
 from sphinx import addnodes
 
 
-explicit_title_re = re.compile('^(.+?)\s*<(.*?)>$', re.DOTALL)
+# \x00 means the "<" was backslash-escaped
+explicit_title_re = re.compile(r'^(.+?)\s*(?<!\x00)<(.*?)>$', re.DOTALL)
 caption_ref_re = explicit_title_re  # b/w compat alias
 
 
@@ -35,7 +38,7 @@ def nested_parse_with_titles(state, content, node):
 def clean_astext(node):
     """Like node.astext(), but ignore images."""
     node = node.deepcopy()
-    for img in node.traverse(docutils.nodes.image):
+    for img in node.traverse(nodes.image):
         img['alt'] = ''
     return node.astext()
 
@@ -75,6 +78,19 @@ def inline_all_toctrees(builder, docnameset, docname, tree, colorfunc):
     return tree
 
 
+def make_refnode(builder, fromdocname, todocname, targetid, child, title=None):
+    """Shortcut to create a reference node."""
+    node = nodes.reference('', '')
+    if fromdocname == todocname:
+        node['refid'] = targetid
+    else:
+        node['refuri'] = (builder.get_relative_uri(fromdocname, todocname)
+                          + '#' + targetid)
+    if title:
+        node['reftitle'] = title
+    node.append(child)
+    return node
+
 # monkey-patch Node.traverse to get more speed
 # traverse() is called so many times during a build that it saves
 # on average 20-25% overall build time!
@@ -104,8 +120,7 @@ def _new_traverse(self, condition=None,
     return self._old_traverse(condition, include_self,
                               descend, siblings, ascend)
 
-import docutils.nodes
-docutils.nodes.Node._old_traverse = docutils.nodes.Node.traverse
-docutils.nodes.Node._all_traverse = _all_traverse
-docutils.nodes.Node._fast_traverse = _fast_traverse
-docutils.nodes.Node.traverse = _new_traverse
+nodes.Node._old_traverse = nodes.Node.traverse
+nodes.Node._all_traverse = _all_traverse
+nodes.Node._fast_traverse = _fast_traverse
+nodes.Node.traverse = _new_traverse

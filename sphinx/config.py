@@ -61,7 +61,9 @@ class Config(object):
         rst_epilog = (None, 'env'),
         rst_prolog = (None, 'env'),
         trim_doctest_flags = (True, 'env'),
+        default_domain = ('py', 'env'),
         needs_sphinx = (None, None),
+        nitpicky = (False, 'env'),
 
         # HTML options
         html_theme = ('default', 'html'),
@@ -81,7 +83,8 @@ class Config(object):
         html_translator_class = (None, 'html'),
         html_sidebars = ({}, 'html'),
         html_additional_pages = ({}, 'html'),
-        html_use_modindex = (True, 'html'),
+        html_use_modindex = (True, 'html'),  # deprecated
+        html_domain_indices = (True, 'html'),
         html_add_permalinks = (True, 'html'),
         html_use_index = (True, 'html'),
         html_split_index = (False, 'html'),
@@ -127,7 +130,8 @@ class Config(object):
         latex_logo = (None, None),
         latex_appendices = ([], None),
         latex_use_parts = (False, None),
-        latex_use_modindex = (True, None),
+        latex_use_modindex = (True, None),  # deprecated
+        latex_domain_indices = (True, None),
         # paper_size and font_size are still separate values
         # so that you can give them easily on the command line
         latex_paper_size = ('letter', None),
@@ -137,6 +141,13 @@ class Config(object):
         latex_docclass = ({}, None),
         # now deprecated - use latex_elements
         latex_preamble = ('', None),
+
+        # text options
+        text_sectionchars = ('*=-~"+`', 'text'),
+        text_windows_newlines = (False, 'text'),
+
+        # manpage options
+        man_pages = ([], None),
     )
 
     def __init__(self, dirname, filename, overrides, tags):

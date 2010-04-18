@@ -14,7 +14,7 @@ from util import *
 
 from docutils.statemachine import ViewList
 
-from sphinx.ext.autodoc import AutoDirective, Documenter, add_documenter, \
+from sphinx.ext.autodoc import AutoDirective, add_documenter, \
      ModuleLevelDocumenter, FunctionDocumenter, cut_lines, between, ALL
 
 
@@ -97,28 +97,28 @@ def test_parse_name():
     verify('function', 'util.raises', ('util', ['raises'], None, None))
     verify('function', 'util.raises(exc) -> None',
            ('util', ['raises'], 'exc', 'None'))
-    directive.env.autodoc_current_module = 'util'
+    directive.env.temp_data['autodoc:module'] = 'util'
     verify('function', 'raises', ('util', ['raises'], None, None))
-    directive.env.autodoc_current_module = None
-    directive.env.currmodule = 'util'
+    del directive.env.temp_data['autodoc:module']
+    directive.env.temp_data['py:module'] = 'util'
     verify('function', 'raises', ('util', ['raises'], None, None))
     verify('class', 'TestApp', ('util', ['TestApp'], None, None))
 
     # for members
-    directive.env.currmodule = 'foo'
+    directive.env.temp_data['py:module'] = 'foo'
     verify('method', 'util.TestApp.cleanup',
            ('util', ['TestApp', 'cleanup'], None, None))
-    directive.env.currmodule = 'util'
-    directive.env.currclass = 'Foo'
-    directive.env.autodoc_current_class = 'TestApp'
+    directive.env.temp_data['py:module'] = 'util'
+    directive.env.temp_data['py:class'] = 'Foo'
+    directive.env.temp_data['autodoc:class'] = 'TestApp'
     verify('method', 'cleanup', ('util', ['TestApp', 'cleanup'], None, None))
     verify('method', 'TestApp.cleanup',
            ('util', ['TestApp', 'cleanup'], None, None))
 
     # and clean up
-    directive.env.currmodule = None
-    directive.env.currclass = None
-    directive.env.autodoc_current_class = None
+    del directive.env.temp_data['py:module']
+    del directive.env.temp_data['py:class']
+    del directive.env.temp_data['autodoc:class']
 
 
 def test_format_signature():
@@ -307,7 +307,7 @@ def test_new_documenter():
         del directive.result[:]
 
     options.members = ['integer']
-    assert_result_contains('.. data:: integer', 'module', 'test_autodoc')
+    assert_result_contains('.. py:data:: integer', 'module', 'test_autodoc')
 
 
 def test_generate():
@@ -341,6 +341,26 @@ def test_generate():
         assert item in directive.result
         del directive.result[:]
 
+    def assert_order(items, objtype, name, member_order, **kw):
+        inst = AutoDirective._registry[objtype](directive, name)
+        inst.options.member_order = member_order
+        inst.generate(**kw)
+        assert len(_warnings) == 0, _warnings
+        items = list(reversed(items))
+        lineiter = iter(directive.result)
+        #for line in directive.result:
+        #    if line.strip():
+        #        print repr(line)
+        while items:
+            item = items.pop()
+            for line in lineiter:
+                if line == item:
+                    break
+            else:  # ran out of items!
+                assert False, 'item %r not found in result or not in the ' \
+                       ' correct order' % item
+        del directive.result[:]
+
     options.members = []
 
     # no module found?
@@ -354,7 +374,7 @@ def test_generate():
                  'function', 'util.foobar', more_content=None)
 
     # test auto and given content mixing
-    directive.env.currmodule = 'test_autodoc'
+    directive.env.temp_data['py:module'] = 'test_autodoc'
     assert_result_contains('   Function.', 'method', 'Class.meth')
     add_content = ViewList()
     add_content.append('Content.', '', 0)
@@ -398,7 +418,8 @@ def test_generate():
 
     options.members = []
     # test module flags
-    assert_result_contains('.. module:: test_autodoc', 'module', 'test_autodoc')
+    assert_result_contains('.. py:module:: test_autodoc',
+                           'module', 'test_autodoc')
     options.synopsis = 'Synopsis'
     assert_result_contains('   :synopsis: Synopsis', 'module', 'test_autodoc')
     options.deprecated = True
@@ -407,9 +428,9 @@ def test_generate():
     assert_result_contains('   :platform: Platform', 'module', 'test_autodoc')
     # test if __all__ is respected for modules
     options.members = ALL
-    assert_result_contains('.. class:: Class(arg)', 'module', 'test_autodoc')
+    assert_result_contains('.. py:class:: Class(arg)', 'module', 'test_autodoc')
     try:
-        assert_result_contains('.. exception:: CustomEx',
+        assert_result_contains('.. py:exception:: CustomEx',
                                'module', 'test_autodoc')
     except AssertionError:
         pass
@@ -423,7 +444,7 @@ def test_generate():
     assert_result_contains('   :noindex:', 'class', 'Base')
 
     # okay, now let's get serious about mixing Python and C signature stuff
-    assert_result_contains('.. class:: CustomDict', 'class', 'CustomDict',
+    assert_result_contains('.. py:class:: CustomDict', 'class', 'CustomDict',
                            all_members=True)
 
     # test inner class handling
@@ -437,9 +458,25 @@ def test_generate():
                            'attribute', 'test_autodoc.Class.descr')
 
     # test generation for C modules (which have no source file)
-    directive.env.currmodule = 'time'
+    directive.env.temp_data['py:module'] = 'time'
     assert_processes([('function', 'time.asctime')], 'function', 'asctime')
     assert_processes([('function', 'time.asctime')], 'function', 'asctime')
+
+    # test autodoc_member_order == 'source'
+    directive.env.temp_data['py:module'] = 'test_autodoc'
+    assert_order(['.. py:class:: Class(arg)',
+                  '   .. py:attribute:: Class.descr',
+                  '   .. py:method:: Class.meth()',
+                  '   .. py:method:: Class.undocmeth()',
+                  '   .. py:attribute:: Class.attr',
+                  '   .. py:attribute:: Class.prop',
+                  '   .. py:attribute:: Class.docattr',
+                  '   .. py:attribute:: Class.udocattr',
+                  '   .. py:attribute:: Class.inst_attr_comment',
+                  '   .. py:attribute:: Class.inst_attr_string',
+                  '   .. py:method:: Class.inheritedmeth()',
+                  ],
+                 'class', 'Class', member_order='bysource', all_members=True)
 
 
 # --- generate fodder ------------

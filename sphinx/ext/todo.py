@@ -14,6 +14,7 @@
 
 from docutils import nodes
 
+from sphinx.locale import _
 from sphinx.environment import NoUri
 from sphinx.util.compat import Directive, make_admonition
 
@@ -34,9 +35,7 @@ class Todo(Directive):
 
     def run(self):
         env = self.state.document.settings.env
-
-        targetid = "todo-%s" % env.index_num
-        env.index_num += 1
+        targetid = 'index-%s' % env.new_serialno('index')
         targetnode = nodes.target('', '', ids=[targetid])
 
         ad = make_admonition(todo_node, self.name, [_('Todo')], self.options,
@@ -160,7 +159,8 @@ def setup(app):
     app.add_node(todo_node,
                  html=(visit_todo_node, depart_todo_node),
                  latex=(visit_todo_node, depart_todo_node),
-                 text=(visit_todo_node, depart_todo_node))
+                 text=(visit_todo_node, depart_todo_node),
+                 man=(visit_todo_node, depart_todo_node))
 
     app.add_directive('todo', Todo)
     app.add_directive('todolist', TodoList)

@@ -26,7 +26,7 @@ from docutils.io import FileInput, NullOutput
 from docutils.core import Publisher
 from docutils.utils import Reporter, relative_path
 from docutils.readers import standalone
-from docutils.parsers.rst import roles
+from docutils.parsers.rst import roles, directives
 from docutils.parsers.rst.languages import en as english
 from docutils.parsers.rst.directives.html import MetaBody
 from docutils.writers import UnfilteredWriter
@@ -36,11 +36,18 @@ from docutils.transforms.parts import ContentsFilter
 from sphinx import addnodes
 from sphinx.util import url_re, get_matching_docs, docname_join, \
      FilenameUniqDict
-from sphinx.util.nodes import clean_astext
+from sphinx.util.nodes import clean_astext, make_refnode
 from sphinx.util.osutil import movefile, SEP, ustrftime
 from sphinx.util.matching import compile_matchers
-from sphinx.errors import SphinxError
-from sphinx.directives import additional_xref_types
+from sphinx.errors import SphinxError, ExtensionError
+from sphinx.locale import _
+
+
+orig_role_function = roles.role
+orig_directive_function = directives.directive
+
+class ElementLookupError(Exception): pass
+
 
 default_settings = {
     'embed_stylesheet': False,
@@ -54,7 +61,7 @@ default_settings = {
 
 # This is increased every time an environment attribute is added
 # or changed to properly invalidate pickle files.
-ENV_VERSION = 31
+ENV_VERSION = 35
 
 
 default_substitutions = set([
@@ -102,7 +109,10 @@ class DefaultSubstitutions(Transform):
 
 class MoveModuleTargets(Transform):
     """
-    Move module targets to their nearest enclosing section title.
+    Move module targets that are the first thing in a section to the section
+    title.
+
+    XXX Python specific
     """
     default_priority = 210
 
@@ -110,10 +120,11 @@ class MoveModuleTargets(Transform):
         for node in self.document.traverse(nodes.target):
             if not node['ids']:
                 continue
-            if node['ids'][0].startswith('module-') and \
-                   node.parent.__class__ is nodes.section and \
-                   node.has_key('ismod'):
-                node.parent['ids'] = node['ids']
+            if (node.has_key('ismod') and
+                node.parent.__class__ is nodes.section and
+                # index 0 is the section title node
+                node.parent.index(node) == 1):
+                node.parent['ids'][0:0] = node['ids']
                 node.parent.remove(node)
 
 
@@ -144,7 +155,8 @@ class SortIds(Transform):
 
 class CitationReferences(Transform):
     """
-    Handle citation references before the default docutils transform does.
+    Replace citation references by pending_xref nodes before the default
+    docutils transform tries to resolve them.
     """
     default_priority = 619
 
@@ -205,9 +217,9 @@ class BuildEnvironment:
             env = pickle.load(picklefile)
         finally:
             picklefile.close()
-        env.config.values = config.values
         if env.version != ENV_VERSION:
             raise IOError('env version not current')
+        env.config.values = config.values
         return env
 
     def topickle(self, filename):
@@ -216,6 +228,8 @@ class BuildEnvironment:
         self.set_warnfunc(None)
         values = self.config.values
         del self.config.values
+        domains = self.domains
+        del self.domains
         # first write to a temporary file, so that if dumping fails,
         # the existing environment won't be overwritten
         picklefile = open(filename + '.tmp', 'wb')
@@ -232,6 +246,7 @@ class BuildEnvironment:
             picklefile.close()
         movefile(filename + '.tmp', filename)
         # reset attributes
+        self.domains = domains
         self.config.values = values
         self.set_warnfunc(warnfunc)
 
@@ -244,6 +259,9 @@ class BuildEnvironment:
 
         # the application object; only set while update() runs
         self.app = None
+
+        # all the registered domains, set by the application
+        self.domains = {}
 
         # the docutils settings for building
         self.settings = default_settings.copy()
@@ -283,16 +301,13 @@ class BuildEnvironment:
         self.glob_toctrees = set()  # docnames that have :glob: toctrees
         self.numbered_toctrees = set() # docnames that have :numbered: toctrees
 
+        # domain-specific inventories, here to be pickled
+        self.domaindata = {}        # domainname -> domain-specific dict
+
         # X-ref target inventory
-        self.descrefs = {}          # fullname -> docname, desctype
-        self.filemodules = {}       # docname -> [modules]
-        self.modules = {}           # modname -> docname, synopsis,
-                                    #            platform, deprecated
         self.labels = {}            # labelname -> docname, labelid, sectionname
         self.anonlabels = {}        # labelname -> docname, labelid
-        self.progoptions = {}       # (program, name) -> docname, labelid
-        self.reftargets = {}        # (type, name) -> docname, labelid
-                                    # type: term, token, envvar, citation
+        self.citations = {}         # citation name -> docname, labelid
 
         # Other inventories
         self.indexentries = {}      # docname -> list of
@@ -304,21 +319,17 @@ class BuildEnvironment:
         self.images = FilenameUniqDict()
         self.dlfiles = FilenameUniqDict()
 
-        # These are set while parsing a file
-        self.docname = None         # current document name
-        self.currmodule = None      # current module name
-        self.currclass = None       # current class name
-        self.currdesc = None        # current descref name
-        self.currprogram = None     # current program name
-        self.index_num = 0          # autonumber for index targets
-        self.gloss_entries = set()  # existing definition labels
+        # temporary data storage while reading a document
+        self.temp_data = {}
 
         # Some magically present labels
-        def add_magic_label(name, description):
-            self.labels[name] = (name, '', description)
-            self.anonlabels[name] = (name, '')
+        def add_magic_label(name, description, target=None):
+            self.labels[name] = (target or name, '', description)
+            self.anonlabels[name] = (target or name, '')
         add_magic_label('genindex', _('Index'))
-        add_magic_label('modindex', _('Module Index'))
+        # XXX add per domain?
+        # compatibility alias
+        add_magic_label('modindex', _('Module Index'), 'py-modindex')
         add_magic_label('search', _('Search Page'))
 
     def set_warnfunc(self, func):
@@ -345,7 +356,6 @@ class BuildEnvironment:
             self.toc_secnumbers.pop(docname, None)
             self.toc_num_entries.pop(docname, None)
             self.toctree_includes.pop(docname, None)
-            self.filemodules.pop(docname, None)
             self.indexentries.pop(docname, None)
             self.glob_toctrees.discard(docname)
             self.numbered_toctrees.discard(docname)
@@ -356,24 +366,18 @@ class BuildEnvironment:
                 fnset.discard(docname)
                 if not fnset:
                     del self.files_to_rebuild[subfn]
-            for fullname, (fn, _) in self.descrefs.items():
-                if fn == docname:
-                    del self.descrefs[fullname]
-            for modname, (fn, _, _, _) in self.modules.items():
-                if fn == docname:
-                    del self.modules[modname]
             for labelname, (fn, _, _) in self.labels.items():
                 if fn == docname:
                     del self.labels[labelname]
-            for key, (fn, _) in self.reftargets.items():
+            for key, (fn, _) in self.citations.items():
                 if fn == docname:
-                    del self.reftargets[key]
-            for key, (fn, _) in self.progoptions.items():
-                if fn == docname:
-                    del self.progoptions[key]
+                    del self.citations[key]
             for version, changes in self.versionchanges.items():
                 new = [change for change in changes if change[1] != docname]
                 changes[:] = new
+
+        for domain in self.domains.values():
+            domain.clear_doc(docname)
 
     def doc2path(self, docname, base=True, suffix=None):
         """
@@ -533,9 +537,7 @@ class BuildEnvironment:
     # --------- SINGLE FILE READING --------------------------------------------
 
     def warn_and_replace(self, error):
-        """
-        Custom decoding error handler that warns and replaces.
-        """
+        """Custom decoding error handler that warns and replaces."""
         linestart = error.object.rfind('\n', 0, error.start)
         lineend = error.object.find('\n', error.start)
         if lineend == -1: lineend = len(error.object)
@@ -547,6 +549,51 @@ class BuildEnvironment:
                    error.object[error.end:lineend]), lineno)
         return (u'?', error.end)
 
+    def lookup_domain_element(self, type, name):
+        """Lookup a markup element (directive or role), given its name which can
+        be a full name (with domain).
+        """
+        name = name.lower()
+        # explicit domain given?
+        if ':' in name:
+            domain_name, name = name.split(':', 1)
+            if domain_name in self.domains:
+                domain = self.domains[domain_name]
+                element = getattr(domain, type)(name)
+                if element is not None:
+                    return element, []
+        # else look in the default domain
+        else:
+            def_domain = self.temp_data.get('default_domain')
+            if def_domain is not None:
+                element = getattr(def_domain, type)(name)
+                if element is not None:
+                    return element, []
+        # always look in the std domain
+        element = getattr(self.domains['std'], type)(name)
+        if element is not None:
+            return element, []
+        raise ElementLookupError
+
+    def patch_lookup_functions(self):
+        """Monkey-patch directive and role dispatch, so that domain-specific
+        markup takes precedence.
+        """
+        def directive(name, lang_module, document):
+            try:
+                return self.lookup_domain_element('directive', name)
+            except ElementLookupError:
+                return orig_directive_function(name, lang_module, document)
+
+        def role(name, lang_module, lineno, reporter):
+            try:
+                return self.lookup_domain_element('role', name)
+            except ElementLookupError:
+                return orig_role_function(name, lang_module, lineno, reporter)
+
+        directives.directive = directive
+        roles.role = role
+
     def read_doc(self, docname, src_path=None, save_parsed=True, app=None):
         """
         Parse a file and add/update inventory entries for the doctree.
@@ -555,10 +602,22 @@ class BuildEnvironment:
         # remove all inventory entries for that file
         if app:
             app.emit('env-purge-doc', self, docname)
+
         self.clear_doc(docname)
 
         if src_path is None:
             src_path = self.doc2path(docname)
+
+        self.temp_data['docname'] = docname
+        # defaults to the global default, but can be re-set in a document
+        self.temp_data['default_domain'] = \
+            self.domains.get(self.config.default_domain)
+
+        self.settings['input_encoding'] = self.config.source_encoding
+        self.settings['trim_footnote_reference_space'] = \
+            self.config.trim_footnote_reference_space
+
+        self.patch_lookup_functions()
 
         if self.config.default_role:
             role_fn, messages = roles.role(self.config.default_role, english,
@@ -568,13 +627,6 @@ class BuildEnvironment:
             else:
                 self.warn(docname, 'default role %s not found' %
                           self.config.default_role)
-
-        self.docname = docname
-        self.settings['input_encoding'] = self.config.source_encoding
-        self.settings['trim_footnote_reference_space'] = \
-            self.config.trim_footnote_reference_space
-
-        codecs.register_error('sphinx', self.warn_and_replace)
 
         codecs.register_error('sphinx', self.warn_and_replace)
 
@@ -608,6 +660,8 @@ class BuildEnvironment:
             doctree = pub.document
         except UnicodeError, err:
             raise SphinxError(str(err))
+
+        # post-processing
         self.filter_messages(doctree)
         self.process_dependencies(docname, doctree)
         self.process_images(docname, doctree)
@@ -620,11 +674,12 @@ class BuildEnvironment:
         self.note_citations_from(docname, doctree)
         self.build_toc_from(docname, doctree)
 
-        # store time of build, for outdated files detection
-        self.all_docs[docname] = time.time()
-
+        # allow extension-specific post-processing
         if app:
             app.emit('doctree-read', doctree)
+
+        # store time of build, for outdated files detection
+        self.all_docs[docname] = time.time()
 
         # make it picklable
         doctree.reporter = None
@@ -637,10 +692,7 @@ class BuildEnvironment:
             metanode.__class__ = addnodes.meta
 
         # cleanup
-        self.docname = None
-        self.currmodule = None
-        self.currclass = None
-        self.gloss_entries = set()
+        self.temp_data.clear()
 
         if save_parsed:
             # save the parsed doctree
@@ -656,6 +708,35 @@ class BuildEnvironment:
                 f.close()
         else:
             return doctree
+
+    # utilities to use while reading a document
+
+    @property
+    def docname(self):
+        """Backwards compatible alias."""
+        return self.temp_data['docname']
+
+    @property
+    def currmodule(self):
+        """Backwards compatible alias."""
+        return self.temp_data.get('py:module')
+
+    @property
+    def currclass(self):
+        """Backwards compatible alias."""
+        return self.temp_data.get('py:class')
+
+    def new_serialno(self, category=''):
+        """Return a serial number, e.g. for index entry targets."""
+        key = category + 'serialno'
+        cur = self.temp_data.get(key, 0)
+        self.temp_data[key] = cur + 1
+        return cur
+
+    def note_dependency(self, filename):
+        self.dependencies.setdefault(self.docname, set()).add(filename)
+
+    # post-processing of read doctrees
 
     def filter_messages(self, doctree):
         """
@@ -879,7 +960,7 @@ class BuildEnvironment:
             if name.isdigit() or node.has_key('refuri') or \
                    node.tagname.startswith('desc_'):
                 # ignore footnote labels, labels automatically generated from a
-                # link and description units
+                # link and object descriptions
                 continue
             if name in self.labels:
                 self.warn(docname, 'duplicate label %s, ' % name +
@@ -909,11 +990,11 @@ class BuildEnvironment:
     def note_citations_from(self, docname, document):
         for node in document.traverse(nodes.citation):
             label = node[0].astext()
-            if ('citation', label) in self.reftargets:
+            if label in self.citations:
                 self.warn(docname, 'duplicate citation %s, ' % label +
                           'other instance in %s' % self.doc2path(
-                    self.reftargets['citation', label][0]), node.line)
-            self.reftargets['citation', label] = (docname, node['ids'][0])
+                    self.citations[label][0]), node.line)
+            self.citations[label] = (docname, node['ids'][0])
 
     def note_toctree(self, docname, toctreenode):
         """Note a TOC tree directive in a document and gather information about
@@ -1001,13 +1082,14 @@ class BuildEnvironment:
             node['refuri'] = node['anchorname'] or '#'
         return toc
 
-    def get_toctree_for(self, docname, builder, collapse):
+    def get_toctree_for(self, docname, builder, collapse, maxdepth=0):
         """Return the global TOC nodetree."""
         doctree = self.get_doctree(self.config.master_doc)
         toctrees = []
         for toctreenode in doctree.traverse(addnodes.toctree):
             toctree = self.resolve_toctree(docname, builder, toctreenode,
                                            prune=True, collapse=collapse,
+                                           maxdepth=maxdepth,
                                            includehidden=True)
             toctrees.append(toctree)
         if not toctrees:
@@ -1017,36 +1099,13 @@ class BuildEnvironment:
             result.extend(toctree.children)
         return result
 
-    # -------
-    # these are called from docutils directives and therefore use self.docname
-    #
-    def note_descref(self, fullname, desctype, line):
-        if fullname in self.descrefs:
-            self.warn(self.docname,
-                      'duplicate canonical description name %s, ' % fullname +
-                      'other instance in ' +
-                      self.doc2path(self.descrefs[fullname][0]),
-                      line)
-        self.descrefs[fullname] = (self.docname, desctype)
-
-    def note_module(self, modname, synopsis, platform, deprecated):
-        self.modules[modname] = (self.docname, synopsis, platform, deprecated)
-        self.filemodules.setdefault(self.docname, []).append(modname)
-
-    def note_progoption(self, optname, labelid):
-        self.progoptions[self.currprogram, optname] = (self.docname, labelid)
-
-    def note_reftarget(self, type, name, labelid):
-        self.reftargets[type, name] = (self.docname, labelid)
-
-    def note_versionchange(self, type, version, node, lineno):
-        self.versionchanges.setdefault(version, []).append(
-            (type, self.docname, lineno, self.currmodule, self.currdesc,
-             node.astext()))
-
-    def note_dependency(self, filename):
-        self.dependencies.setdefault(self.docname, set()).add(filename)
-    # -------
+    def get_domain(self, domainname):
+        """Return the domain instance with the specified name.
+        Raises an ExtensionError if the domain is not registered."""
+        try:
+            return self.domains[domainname]
+        except KeyError:
+            raise ExtensionError('Domain %r is not registered' % domainname)
 
     # --------- RESOLVING REFERENCES AND TOCTREES ------------------------------
 
@@ -1230,15 +1289,7 @@ class BuildEnvironment:
                     docname, refnode['refuri']) + refnode['anchorname']
         return newnode
 
-    descroles = frozenset(('data', 'exc', 'func', 'class', 'const',
-                           'attr', 'obj', 'meth', 'cfunc', 'cmember',
-                           'cdata', 'ctype', 'cmacro'))
-
     def resolve_references(self, doctree, fromdocname, builder):
-        reftarget_roles = set(('token', 'term', 'citation'))
-        # add all custom xref types too
-        reftarget_roles.update(i[0] for i in additional_xref_types.values())
-
         for node in doctree.traverse(addnodes.pending_xref):
             contnode = node[0].deepcopy()
             newnode = None
@@ -1246,10 +1297,20 @@ class BuildEnvironment:
             typ = node['reftype']
             target = node['reftarget']
             refdoc = node.get('refdoc', fromdocname)
+            warned = False
 
             try:
-                if typ == 'ref':
-                    if node['refcaption']:
+                if node.has_key('refdomain') and node['refdomain']:
+                    # let the domain try to resolve the reference
+                    try:
+                        domain = self.domains[node['refdomain']]
+                    except KeyError:
+                        raise NoUri
+                    newnode = domain.resolve_xref(self, fromdocname, builder,
+                                                  typ, target, node, contnode)
+                # really hardwired reference types
+                elif typ == 'ref':
+                    if node['refexplicit']:
                         # reference to anonymous label; the reference uses
                         # the supplied link caption
                         docname, labelid = self.anonlabels.get(target, ('',''))
@@ -1257,8 +1318,9 @@ class BuildEnvironment:
                         if not docname:
                             self.warn(refdoc, 'undefined label: %s' %
                                       target, node.line)
+                            warned = True
                     else:
-                        # reference to the named label; the final node will
+                        # reference to named label; the final node will
                         # contain the section name after the label
                         docname, labelid, sectname = self.labels.get(target,
                                                                      ('','',''))
@@ -1267,6 +1329,7 @@ class BuildEnvironment:
                                 'undefined label: %s' % target + ' -- if you '
                                 'don\'t give a link caption the label must '
                                 'precede a section header.', node.line)
+                            warned = True
                     if docname:
                         newnode = nodes.reference('', '')
                         innernode = nodes.emphasis(sectname, sectname)
@@ -1284,18 +1347,16 @@ class BuildEnvironment:
                             if labelid:
                                 newnode['refuri'] += '#' + labelid
                         newnode.append(innernode)
-                    else:
-                        newnode = contnode
                 elif typ == 'doc':
                     # directly reference to document by source name;
                     # can be absolute or relative
                     docname = docname_join(refdoc, target)
                     if docname not in self.all_docs:
-                        self.warn(refdoc, 'unknown document: %s' % docname,
-                                  node.line)
-                        newnode = contnode
+                        self.warn(refdoc,
+                                  'unknown document: %s' % docname, node.line)
+                        warned = True
                     else:
-                        if node['refcaption']:
+                        if node['refexplicit']:
                             # reference with explicit title
                             caption = node.astext()
                         else:
@@ -1305,100 +1366,39 @@ class BuildEnvironment:
                         newnode['refuri'] = builder.get_relative_uri(
                             fromdocname, docname)
                         newnode.append(innernode)
+                elif typ == 'citation':
+                    docname, labelid = self.citations.get(target, ('', ''))
+                    if not docname:
+                        self.warn(refdoc,
+                                  'citation not found: %s' % target, node.line)
+                        warned = True
+                    else:
+                        newnode = make_refnode(builder, fromdocname, docname,
+                                               labelid, contnode)
                 elif typ == 'keyword':
-                    # keywords are referenced by named labels
+                    # keywords are oddballs: they are referenced by named labels
                     docname, labelid, _ = self.labels.get(target, ('','',''))
                     if not docname:
                         #self.warn(refdoc, 'unknown keyword: %s' % target)
-                        newnode = contnode
+                        pass
                     else:
-                        newnode = nodes.reference('', '')
-                        if docname == fromdocname:
-                            newnode['refid'] = labelid
-                        else:
-                            newnode['refuri'] = builder.get_relative_uri(
-                                fromdocname, docname) + '#' + labelid
-                        newnode.append(contnode)
-                elif typ == 'option':
-                    progname = node['refprogram']
-                    docname, labelid = self.progoptions.get((progname, target),
-                                                            ('', ''))
-                    if not docname:
-                        newnode = contnode
-                    else:
-                        newnode = nodes.reference('', '')
-                        if docname == fromdocname:
-                            newnode['refid'] = labelid
-                        else:
-                            newnode['refuri'] = builder.get_relative_uri(
-                                fromdocname, docname) + '#' + labelid
-                        newnode.append(contnode)
-                elif typ in reftarget_roles:
-                    docname, labelid = self.reftargets.get((typ, target),
-                                                           ('', ''))
-                    if not docname:
-                        if typ == 'term':
-                            self.warn(refdoc,
-                                      'term not in glossary: %s' % target,
-                                      node.line)
-                        elif typ == 'citation':
-                            self.warn(refdoc, 'citation not found: %s' % target,
-                                      node.line)
-                        newnode = contnode
-                    else:
-                        newnode = nodes.reference('', '')
-                        if docname == fromdocname:
-                            newnode['refid'] = labelid
-                        else:
-                            newnode['refuri'] = builder.get_relative_uri(
-                                fromdocname, docname, typ) + '#' + labelid
-                        newnode.append(contnode)
-                elif typ == 'mod' or \
-                         typ == 'obj' and target in self.modules:
-                    docname, synopsis, platform, deprecated = \
-                        self.modules.get(target, ('','','', ''))
-                    if not docname:
-                        newnode = builder.app.emit_firstresult(
-                            'missing-reference', self, node, contnode)
-                        if not newnode:
-                            newnode = contnode
-                    else:
-                        newnode = nodes.reference('', '')
-                        newnode['refuri'] = builder.get_relative_uri(
-                            fromdocname, docname) + '#module-' + target
-                        newnode['reftitle'] = '%s%s%s' % (
-                            (platform and '(%s) ' % platform),
-                            synopsis, (deprecated and ' (deprecated)' or ''))
-                        newnode.append(contnode)
-                elif typ in self.descroles:
-                    # "descrefs"
-                    modname = node['modname']
-                    clsname = node['classname']
-                    searchorder = node.hasattr('refspecific') and 1 or 0
-                    name, desc = self.find_desc(modname, clsname,
-                                                target, typ, searchorder)
-                    if not desc:
-                        newnode = builder.app.emit_firstresult(
-                            'missing-reference', self, node, contnode)
-                        if not newnode:
-                            newnode = contnode
-                    else:
-                        newnode = nodes.reference('', '')
-                        if desc[0] == fromdocname:
-                            newnode['refid'] = name
-                        else:
-                            newnode['refuri'] = (
-                                builder.get_relative_uri(fromdocname, desc[0])
-                                + '#' + name)
-                        newnode['reftitle'] = name
-                        newnode.append(contnode)
-                else:
-                    raise RuntimeError('unknown xfileref node encountered: %s'
-                                       % node)
+                        newnode = make_refnode(builder, fromdocname, docname,
+                                               labelid, contnode)
+
+                # no new node found? try the missing-reference event
+                if newnode is None:
+                    newnode = builder.app.emit_firstresult(
+                        'missing-reference', self, node, contnode)
+                    # still not found? warn if in nit-picky mode
+                    if newnode is None and not warned and self.config.nitpicky:
+                        self.warn(refdoc,
+                            'reference target not found: %stype %s, target %s'
+                            % (node.get('refdomain') and
+                               'domain %s, ' % node['refdomain'] or '',
+                               typ, target))
             except NoUri:
                 newnode = contnode
-            if newnode:
-                node.replace_self(newnode)
+            node.replace_self(newnode or contnode)
 
         for node in doctree.traverse(addnodes.only):
             try:
@@ -1562,7 +1562,7 @@ class BuildEnvironment:
             i += 1
 
         # group the entries by letter
-        def keyfunc((k, v), letters=string.ascii_uppercase + '_'):
+        def keyfunc2((k, v), letters=string.ascii_uppercase + '_'):
             # hack: mutating the subitems dicts to a list in the keyfunc
             v[1] = sorted((si, se) for (si, (se, void)) in v[1].iteritems())
             # now calculate the key
@@ -1573,7 +1573,7 @@ class BuildEnvironment:
                 # get all other symbols under one heading
                 return 'Symbols'
         return [(key, list(group))
-                for (key, group) in groupby(newlist, keyfunc)]
+                for (key, group) in groupby(newlist, keyfunc2)]
 
     def collect_relations(self):
         relations = {}
@@ -1628,119 +1628,6 @@ class BuildEnvironment:
                 if docname == self.config.master_doc:
                     # the master file is not included anywhere ;)
                     continue
+                if 'orphan' in self.metadata[docname]:
+                    continue
                 self.warn(docname, 'document isn\'t included in any toctree')
-
-    # --------- QUERYING -------------------------------------------------------
-
-    def find_desc(self, modname, classname, name, type, searchorder=0):
-        """Find a description node matching "name", perhaps using
-           the given module and/or classname."""
-        # skip parens
-        if name[-2:] == '()':
-            name = name[:-2]
-
-        if not name:
-            return None, None
-
-        # don't add module and class names for C things
-        if type[0] == 'c' and type not in ('class', 'const'):
-            # skip trailing star and whitespace
-            name = name.rstrip(' *')
-            if name in self.descrefs and self.descrefs[name][1][0] == 'c':
-                return name, self.descrefs[name]
-            return None, None
-
-        newname = None
-        if searchorder == 1:
-            if modname and classname and \
-                   modname + '.' + classname + '.' + name in self.descrefs:
-                newname = modname + '.' + classname + '.' + name
-            elif modname and modname + '.' + name in self.descrefs:
-                newname = modname + '.' + name
-            elif name in self.descrefs:
-                newname = name
-        else:
-            if name in self.descrefs:
-                newname = name
-            elif classname and classname + '.' + name in self.descrefs:
-                newname = classname + '.' + name
-            elif modname and modname + '.' + name in self.descrefs:
-                newname = modname + '.' + name
-            elif modname and classname and \
-                     modname + '.' + classname + '.' + name in self.descrefs:
-                newname = modname + '.' + classname + '.' + name
-            # special case: builtin exceptions have module "exceptions" set
-            elif type == 'exc' and '.' not in name and \
-                 'exceptions.' + name in self.descrefs:
-                newname = 'exceptions.' + name
-            # special case: object methods
-            elif type in ('func', 'meth') and '.' not in name and \
-                 'object.' + name in self.descrefs:
-                newname = 'object.' + name
-        if newname is None:
-            return None, None
-        return newname, self.descrefs[newname]
-
-    def find_keyword(self, keyword, avoid_fuzzy=False, cutoff=0.6, n=20):
-        """
-        Find keyword matches for a keyword. If there's an exact match,
-        just return it, else return a list of fuzzy matches if avoid_fuzzy
-        isn't True.
-
-        Keywords searched are: first modules, then descrefs.
-
-        Returns: None if nothing found
-                 (type, docname, anchorname) if exact match found
-                 list of (quality, type, docname, anchorname, description)
-                 if fuzzy
-        """
-
-        if keyword in self.modules:
-            docname, title, system, deprecated = self.modules[keyword]
-            return 'module', docname, 'module-' + keyword
-        if keyword in self.descrefs:
-            docname, ref_type = self.descrefs[keyword]
-            return ref_type, docname, keyword
-        # special cases
-        if '.' not in keyword:
-            # exceptions are documented in the exceptions module
-            if 'exceptions.'+keyword in self.descrefs:
-                docname, ref_type = self.descrefs['exceptions.'+keyword]
-                return ref_type, docname, 'exceptions.'+keyword
-            # special methods are documented as object methods
-            if 'object.'+keyword in self.descrefs:
-                docname, ref_type = self.descrefs['object.'+keyword]
-                return ref_type, docname, 'object.'+keyword
-
-        if avoid_fuzzy:
-            return
-
-        # find fuzzy matches
-        s = difflib.SequenceMatcher()
-        s.set_seq2(keyword.lower())
-
-        def possibilities():
-            for title, (fn, desc, _, _) in self.modules.iteritems():
-                yield ('module', fn, 'module-'+title, desc)
-            for title, (fn, desctype) in self.descrefs.iteritems():
-                yield (desctype, fn, title, '')
-
-        def dotsearch(string):
-            parts = string.lower().split('.')
-            for idx in xrange(0, len(parts)):
-                yield '.'.join(parts[idx:])
-
-        result = []
-        for type, docname, title, desc in possibilities():
-            best_res = 0
-            for part in dotsearch(title):
-                s.set_seq1(part)
-                if s.real_quick_ratio() >= cutoff and \
-                   s.quick_ratio() >= cutoff and \
-                   s.ratio() >= cutoff and \
-                   s.ratio() > best_res:
-                    best_res = s.ratio()
-            if best_res:
-                result.append((best_res, type, docname, title, desc))
-
-        return heapq.nlargest(n, result)

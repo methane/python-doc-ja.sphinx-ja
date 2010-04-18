@@ -15,7 +15,7 @@ import textwrap
 from docutils import nodes, writers
 
 from sphinx import addnodes
-from sphinx.locale import admonitionlabels, versionlabels
+from sphinx.locale import admonitionlabels, versionlabels, _
 
 
 class TextWriter(writers.Writer):
@@ -161,13 +161,6 @@ class TextTranslator(nodes.NodeVisitor):
     def depart_attribution(self, node):
         pass
 
-    def visit_module(self, node):
-        if node.has_key('platform'):
-            self.new_state(0)
-            self.add_text(_('Platform: %s') % node['platform'])
-            self.end_state()
-        raise nodes.SkipNode
-
     def visit_desc(self, node):
         pass
     def depart_desc(self, node):
@@ -175,8 +168,8 @@ class TextTranslator(nodes.NodeVisitor):
 
     def visit_desc_signature(self, node):
         self.new_state(0)
-        if node.parent['desctype'] in ('class', 'exception'):
-            self.add_text('%s ' % node.parent['desctype'])
+        if node.parent['objtype'] in ('class', 'exception'):
+            self.add_text('%s ' % node.parent['objtype'])
     def depart_desc_signature(self, node):
         # XXX: wrap signatures in a way that makes sense
         self.end_state(wrap=False, end=None)

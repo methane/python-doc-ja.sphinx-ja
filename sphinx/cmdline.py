@@ -43,6 +43,7 @@ new and changed files
          -C        -- use no config file at all, only -D options
          -D <setting=value> -- override a setting in configuration
          -A <name=value>    -- pass a value into the templates, for HTML builder
+         -n        -- nit-picky mode, warn about all missing references
          -N        -- do not do colored output
          -q        -- no output on stdout, just warnings on stderr
          -Q        -- no output at all, not even warnings
@@ -61,7 +62,7 @@ def main(argv):
         nocolor()
 
     try:
-        opts, args = getopt.getopt(argv[1:], 'ab:t:d:c:CD:A:g:NEqQWw:P')
+        opts, args = getopt.getopt(argv[1:], 'ab:t:d:c:CD:A:ng:NEqQWw:P')
         allopts = set(opt[0] for opt in opts)
         srcdir = confdir = path.abspath(args[0])
         if not path.isdir(srcdir):
@@ -89,8 +90,8 @@ def main(argv):
     if err:
         return 1
 
-    buildername = all_files = None
-    freshenv = warningiserror = use_pdb = False
+    buildername = None
+    force_all = freshenv = warningiserror = use_pdb = False
     status = sys.stdout
     warning = sys.stderr
     error = sys.stderr
@@ -105,7 +106,7 @@ def main(argv):
             if filenames:
                 usage(argv, 'Cannot combine -a option and filenames.')
                 return 1
-            all_files = True
+            force_all = True
         elif opt == '-t':
             tags.append(val)
         elif opt == '-d':
@@ -142,6 +143,8 @@ def main(argv):
             except ValueError:
                 pass
             confoverrides['html_context.%s' % key] = val
+        elif opt == '-n':
+            confoverrides['nitpicky'] = True
         elif opt == '-N':
             nocolor()
         elif opt == '-E':
@@ -167,7 +170,7 @@ def main(argv):
         app = Sphinx(srcdir, confdir, outdir, doctreedir, buildername,
                      confoverrides, status, warning, freshenv,
                      warningiserror, tags)
-        app.build(all_files, filenames)
+        app.build(force_all, filenames)
         return app.statuscode
     except KeyboardInterrupt:
         if use_pdb:

@@ -59,10 +59,12 @@ The builder's "name" must be given to the **-b** command-line option of
 .. class:: QtHelpBuilder
 
    This builder produces the same output as the standalone HTML builder, but
-   also generates Qt help collection support files that allow
+   also generates `Qt help`_ collection support files that allow
    the Qt collection generator to compile them.
 
    Its name is ``qthelp``.
+
+   .. _Qt help: http://doc.trolltech.com/4.6/qthelp-framework.html
 
 .. module:: sphinx.builders.devhelp
 .. class:: DevhelpBuilder
@@ -126,6 +128,22 @@ Note that a direct PDF builder using ReportLab is available in `rst2pdf
 
    .. versionadded:: 0.4
 
+.. module:: sphinx.builders.manpage
+.. class:: ManualPageBuilder
+
+   This builder produces manual pages in the groff format.  You have to specify
+   which documents are to be included in which manual pages via the
+   :confval:`man_pages` configuration value.
+
+   Its name is ``man``.
+
+   .. note::
+
+      This builder requires the docutils manual page writer, which is only
+      available as of docutils 0.6.
+
+   .. versionadded:: 1.0
+
 .. currentmodule:: sphinx.builders.html
 .. class:: SerializingHTMLBuilder
 
@@ -133,7 +151,7 @@ Note that a direct PDF builder using ReportLab is available in `rst2pdf
    (`pickle`, `simplejson`, `phpserialize`, and others) to dump the generated
    HTML documentation.  The pickle builder is a subclass of it.
 
-   A concreate subclass of this builder serializing to the `PHP serialization`_
+   A concrete subclass of this builder serializing to the `PHP serialization`_
    format could look like this::
 
         import phpserialize
@@ -205,8 +223,8 @@ Note that a direct PDF builder using ReportLab is available in `rst2pdf
 .. module:: sphinx.builders.changes
 .. class:: ChangesBuilder
 
-   This builder produces an HTML overview of all :dir:`versionadded`,
-   :dir:`versionchanged` and :dir:`deprecated` directives for the current
+   This builder produces an HTML overview of all :rst:dir:`versionadded`,
+   :rst:dir:`versionchanged` and :rst:dir:`deprecated` directives for the current
    :confval:`version`.  This is useful to generate a ChangeLog file, for
    example.
 
@@ -278,8 +296,8 @@ The special files are located in the root output directory.  They are:
    ``project``, ``copyright``, ``release``, ``version``
       The same values as given in the configuration file.
 
-   ``style``, ``use_modindex``
-      :confval:`html_style` and :confval:`html_use_modindex`, respectively.
+   ``style``
+      :confval:`html_style`.
 
    ``last_updated``
       Date of last build.
@@ -304,7 +322,9 @@ The special files are located in the root output directory.  They are:
 ``environment.pickle``
    The build environment.  This is always a pickle file, independent of the
    builder and a copy of the environment that was used when the builder was
-   started.  (XXX: document common members)
+   started.
 
-   Unlike the other pickle files this pickle file requires that the sphinx
-   module is available on unpickling.
+   .. todo:: Document common members.
+
+   Unlike the other pickle files this pickle file requires that the ``sphinx``
+   package is available on unpickling.
