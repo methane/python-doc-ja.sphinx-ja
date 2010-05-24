@@ -368,36 +368,8 @@ dl.glossary dt {
     margin-left: 1.5em;
 }
 
-.command,
-.makevar,
-.program
-{
-    font-weight: bold;
-}
-
-.kbd,
-.regexp
-{
-    font-family: monospace;
-    white-space: pre-wrap;
-    background-color: #ecf0f3;
-    padding: 0 1px 0 1px;
-    font-size: 0.95em;
-}
-
-.dfn {
-    font-style: italic;
-}
-
-.guilabel {
+.guilabel, .menuselection {
     font-family: sans-serif;
-    font-weight: bold;
-}
-
-.menuselection {
-    font-family: sans-serif;
-    font-style: italic;
-    font-weight: bold;
 }
 
 .accelerator {

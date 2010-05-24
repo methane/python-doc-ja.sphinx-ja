@@ -8,7 +8,6 @@
     :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
-import re
 
 from sphinx import addnodes
 from sphinx.domains import Domain, ObjType
@@ -93,7 +92,7 @@ class JSObject(ObjectDescription):
         fullname = name_obj[0]
         if fullname not in self.state.document.ids:
             signode['names'].append(fullname)
-            signode['ids'].append(fullname)
+            signode['ids'].append(fullname.replace('$', '_S_'))
             signode['first'] = not self.names
             self.state.document.note_explicit_target(signode)
             objects = self.env.domaindata['js']['objects']
@@ -164,9 +163,9 @@ class JavaScriptDomain(Domain):
     label = 'JavaScript'
     # if you add a new object type make sure to edit JSObject.get_index_string
     object_types = {
-        'function':  ObjType(l_('JavaScript function'),  'func'),
-        'data':      ObjType(l_('JavaScript data'),      'data'),
-        'attribute': ObjType(l_('JavaScript attribute'), 'attr'),
+        'function':  ObjType(l_('function'),  'func'),
+        'data':      ObjType(l_('data'),      'data'),
+        'attribute': ObjType(l_('attribute'), 'attr'),
     }
     directives = {
         'function':  JSCallable,
@@ -215,4 +214,4 @@ class JavaScriptDomain(Domain):
 
     def get_objects(self):
         for refname, (docname, type) in self.data['objects'].iteritems():
-            yield refname, type, docname, refname, 1
+            yield refname, refname, type, docname, refname, 1

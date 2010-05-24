@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """
     sphinx.roles
@@ -23,36 +22,22 @@ from sphinx.util.nodes import split_explicit_title
 
 
 generic_docroles = {
+    'command' : nodes.strong,
+    'dfn' : nodes.emphasis,
+    'kbd' : nodes.literal,
     'mailheader' : addnodes.literal_emphasis,
+    'makevar' : nodes.strong,
     'manpage' : addnodes.literal_emphasis,
     'mimetype' : addnodes.literal_emphasis,
     'newsgroup' : addnodes.literal_emphasis,
+    'program' : nodes.strong,  # XXX should be an x-ref
+    'regexp' : nodes.literal,
 }
 
 for rolename, nodeclass in generic_docroles.iteritems():
     generic = roles.GenericRole(rolename, nodeclass)
     role = roles.CustomRole(rolename, generic, {'classes': [rolename]})
     roles.register_local_role(rolename, role)
-
-simple_docroles = [
-    'command',
-    'dfn',
-    'kbd',
-    'makevar',
-    'program',
-    'regexp',
-    ]
-
-def simple_docrole(typ, rawtext, text, lineno, inliner, options={}, content=[]):
-    node = nodes.inline()
-    textnode = nodes.Text(text, rawtext)
-    node += textnode
-    node["classes"].append(typ)
-    return [node], []
-
-for rolename in simple_docroles:
-    roles.register_local_role(rolename, simple_docrole)
-
 
 # -- generic cross-reference role ----------------------------------------------
 
@@ -197,7 +182,7 @@ def indexmarkup_role(typ, rawtext, etext, lineno, inliner,
             return [prb], [msg]
         ref = inliner.document.settings.pep_base_url + 'pep-%04d' % pepnum
         sn = nodes.strong('PEP '+text, 'PEP '+text)
-        rn = nodes.reference('', '', refuri=ref, classes=[typ])
+        rn = nodes.reference('', '', internal=False, refuri=ref, classes=[typ])
         rn += sn
         return [indexnode, targetnode, rn], []
     elif typ == 'rfc':
@@ -212,19 +197,19 @@ def indexmarkup_role(typ, rawtext, etext, lineno, inliner,
             return [prb], [msg]
         ref = inliner.document.settings.rfc_base_url + inliner.rfc_url % rfcnum
         sn = nodes.strong('RFC '+text, 'RFC '+text)
-        rn = nodes.reference('', '', refuri=ref, classes=[typ])
+        rn = nodes.reference('', '', internal=False, refuri=ref, classes=[typ])
         rn += sn
         return [indexnode, targetnode, rn], []
 
 
-_amp_re = re.compile(r'&(?![&\s])')
+_amp_re = re.compile(r'(?<!&)&(?![&\s])')
 
 def menusel_role(typ, rawtext, text, lineno, inliner, options={}, content=[]):
     if typ == 'menuselection':
         text = utils.unescape(text).replace('-->', u'\N{TRIANGULAR BULLET}')
     spans = _amp_re.split(text)
 
-    node = nodes.inline(rawtext=rawtext)
+    node = nodes.emphasis(rawtext=rawtext)
     for i, span in enumerate(spans):
         span = span.replace('&&', '&')
         if i == 0:
@@ -276,12 +261,8 @@ def abbr_role(typ, rawtext, text, lineno, inliner, options={}, content=[]):
 specific_docroles = {
     # links to download references
     'download': XRefRole(nodeclass=addnodes.download_reference),
-    # links to headings or arbitrary labels
-    'ref': XRefRole(lowercase=True, innernodeclass=nodes.emphasis),
     # links to documents
     'doc': XRefRole(),
-    # links to labels, without a different title
-    'keyword': XRefRole(),
 
     'pep': indexmarkup_role,
     'rfc': indexmarkup_role,
