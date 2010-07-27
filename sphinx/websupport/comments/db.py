@@ -50,6 +50,7 @@ class Comment(Base):
     displayed = Column(Boolean, index=True, default=False)
     username = Column(String(64))
     proposal = Column(Text)
+    proposal_diff = Column(Text)
 
     node_id = Column(Integer, ForeignKey(db_prefix + 'nodes.id'))
     node = relation(Node, backref='comments')
@@ -57,8 +58,8 @@ class Comment(Base):
     parent_id = Column(Integer, ForeignKey(db_prefix + 'comments.id'))
     parent = relation('Comment', backref='children', remote_side=[id])
 
-    def __init__(self, text, displayed, username, rating, time,
-                 node=None, parent=None, proposal=None):
+    def __init__(self, text, displayed, username, rating, time, 
+                 proposal, proposal_diff, node, parent):
         self.text = text
         self.displayed = displayed
         self.username = username
@@ -67,6 +68,7 @@ class Comment(Base):
         self.node = node
         self.parent = parent
         self.proposal = proposal
+        self.proposal_diff = proposal_diff
 
     def serializable(self, user_id=None):
         delta = datetime.now() - self.time
@@ -98,6 +100,7 @@ class Comment(Base):
                 'vote': vote or 0,
                 'node': self.node.id if self.node else None,
                 'parent': self.parent.id if self.parent else None,
+                'proposal_diff': self.proposal_diff,
                 'children': [child.serializable(user_id)
                              for child in self.children]}
 
