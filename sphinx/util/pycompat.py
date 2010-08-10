@@ -12,6 +12,7 @@
 import sys
 import codecs
 import encodings
+import re
 
 try:
     from types import ClassType
@@ -19,11 +20,6 @@ try:
 except ImportError:
     # Python 3
     class_types = (type,)
-
-try:
-    base_exception = BaseException
-except NameError:
-    base_exception = Exception
 
 
 # the ubiquitous "bytes" helper function
@@ -34,12 +30,42 @@ else:
     b = str
 
 
+# Support for running 2to3 over config files
+
+if sys.version_info < (3, 0):
+    # no need to refactor on 2.x versions
+    convert_with_2to3 = None
+else:
+    def convert_with_2to3(filepath):
+        from lib2to3.refactor import RefactoringTool, get_fixers_from_package
+        from lib2to3.pgen2.parse import ParseError
+        fixers = get_fixers_from_package('lib2to3.fixes')
+        refactoring_tool = RefactoringTool(fixers)
+        source = refactoring_tool._read_python_source(filepath)[0]
+        try:
+            tree = refactoring_tool.refactor_string(source, 'conf.py')
+        except ParseError, err:
+            # do not propagate lib2to3 exceptions
+            lineno, offset = err.context[1]
+            # try to match ParseError details with SyntaxError details
+            raise SyntaxError(err.msg, (filepath, lineno, offset, err.value))
+        return unicode(tree)
+
+
+try:
+    base_exception = BaseException
+except NameError:
+    base_exception = Exception
+
+
 try:
     next = next
 except NameError:
-    # this is on Python 2, where the method is called "next"
+    # this is on Python 2, where the method is called "next" (it is refactored
+    # to __next__ by 2to3, but in that case never executed)
     def next(iterator):
         return iterator.next()
+
 
 try:
     bytes = bytes

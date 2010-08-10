@@ -16,10 +16,13 @@ from os import path
 
 from sphinx.errors import ConfigError
 from sphinx.util.osutil import make_filename
-from sphinx.util.pycompat import bytes, b
+from sphinx.util.pycompat import bytes, b, convert_with_2to3
 
 nonascii_re = re.compile(b(r'[\x80-\xff]'))
 
+CONFIG_SYNTAX_ERROR = "There is a syntax error in your configuration file: %s"
+if sys.version_info >= (3, 0):
+    CONFIG_SYNTAX_ERROR += "\nDid you change the syntax from 2.x to 3.x?"
 
 class Config(object):
     """Configuration file abstraction."""
@@ -165,17 +168,30 @@ class Config(object):
             config['tags'] = tags
             olddir = os.getcwd()
             try:
+                # we promise to have the config dir as current dir while the
+                # config file is executed
+                os.chdir(dirname)
+                # get config source
+                f = open(config_file, 'rb')
                 try:
-                    os.chdir(dirname)
-                    f = open(config_file, 'rb')
+                    source = f.read()
+                finally:
+                    f.close()
+                try:
+                    # compile to a code object, handle syntax errors
                     try:
-                        code = compile(f.read(), config_file, 'exec')
-                    finally:
-                        f.close()
+                        code = compile(source, config_file, 'exec')
+                    except SyntaxError:
+                        if convert_with_2to3:
+                            # maybe the file uses 2.x syntax; try to refactor to
+                            # 3.x syntax using 2to3
+                            source = convert_with_2to3(config_file)
+                            code = compile(source, config_file, 'exec')
+                        else:
+                            raise
                     exec code in config
                 except SyntaxError, err:
-                    raise ConfigError('There is a syntax error in your '
-                                      'configuration file: ' + str(err))
+                    raise ConfigError(CONFIG_SYNTAX_ERROR % err)
             finally:
                 os.chdir(olddir)
 
