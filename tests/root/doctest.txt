@@ -1,0 +1,120 @@
+Testing the doctest extension
+=============================
+
+Simple doctest blocks
+---------------------
+
+>>> 1+1
+2
+>>> 1/0
+Traceback (most recent call last):
+  ...
+ZeroDivisionError: integer division or modulo by zero
+
+
+Special directives
+------------------
+
+* doctest
+
+  .. doctest::
+
+     >>> 1+1
+     2
+     >>> 1/0
+     Traceback (most recent call last):
+       ...
+     ZeroDivisionError: integer division or modulo by zero
+
+* testcode/testoutput
+
+  .. testcode::
+
+     print(1+1)
+
+  .. testoutput::
+
+     2
+
+  .. testcode::
+
+     1/0
+
+  .. testoutput::
+
+     Traceback (most recent call last):
+       ...
+     ZeroDivisionError: integer division or modulo by zero
+
+* testsetup
+
+  .. testsetup:: *
+
+     from math import factorial
+
+  .. doctest::
+
+     >>> factorial(1)
+     1
+
+  .. testcode::
+
+     print(factorial(1))
+
+  .. testoutput::
+
+     1
+
+  >>> factorial(1)
+  1
+
+* options for testcode/testoutput blocks
+
+  .. testcode::
+     :hide:
+
+     print('Output         text.')
+
+  .. testoutput::
+     :hide:
+     :options: +NORMALIZE_WHITESPACE
+
+     Output text.
+
+* grouping
+
+  .. testsetup:: group1
+
+     from math import trunc
+
+  ``trunc`` is now known in "group1", but not in others.
+
+  .. doctest:: group1
+
+     >>> trunc(1.1)
+     1
+
+  .. doctest:: group2
+
+     >>> trunc(1.1)
+     Traceback (most recent call last):
+       ...
+     NameError: name 'trunc' is not defined
+
+  Interleaving testcode/testoutput:
+
+  .. testcode:: group1
+
+     print(factorial(3))
+
+  .. testcode:: group2
+
+     print(factorial(4))
+
+  .. testoutput:: group1
+
+     6
+
+  .. testoutput:: group2
+
+     24
