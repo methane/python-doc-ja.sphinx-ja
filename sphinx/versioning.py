@@ -45,11 +45,17 @@ def merge_doctrees(old, new, condition):
     old_nodes = old.traverse(condition)
     new_nodes = new.traverse(condition)
     ratios = defaultdict(list)
-    for old_node, new_node in product(old_nodes, new_nodes):
-        ratios[old_node, new_node] = get_ratio(old_node.rawsource,
-                                               new_node.rawsource)
-    ratios = sorted(ratios.iteritems(), key=itemgetter(1))
     seen = set()
+    for old_node, new_node in product(old_nodes, new_nodes):
+        if new_node in seen:
+            continue
+        ratio = get_ratio(old_node.rawsource, new_node.rawsource)
+        if ratio == 0:
+            new_node.uid = old_node.uid
+            seen.add(new_node)
+        else:
+            ratios[old_node, new_node] = ratio
+    ratios = sorted(ratios.iteritems(), key=itemgetter(1))
     for (old_node, new_node), ratio in ratios:
         if new_node in seen:
             continue
@@ -66,12 +72,11 @@ def get_ratio(old, new):
     Returns a "similiarity ratio" representing the similarity between the two
     strings where 0 is equal and anything above less than equal.
     """
-    if old == new:
-        return 0
-    ratio = levenshtein_distance(old, new) / (len(old) / 100.0)
-    return ratio
+    return levenshtein_distance(old, new) / (len(old) / 100.0)
 
 def levenshtein_distance(a, b):
+    if a == b:
+        return 0
     if len(a) < len(b):
         a, b = b, a
     if not a:
