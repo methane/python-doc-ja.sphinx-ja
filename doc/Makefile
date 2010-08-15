@@ -16,8 +16,8 @@ ALLSPHINXOPTS = -d _build/doctrees $(PAPEROPT_$(PAPER)) \
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
-	@echo "  html      to make standalone HTML files"
-	@echo "  dirhtml   to make HTML files called index.html in directories"
+	@echo "  html       to make standalone HTML files"
+	@echo "  dirhtml    to make HTML files called index.html in directories"
 	@echo "  singlehtml to make one big HTML file"
 	@echo "  text      to make text files"
 	@echo "  man       to make manual pages"
