@@ -102,3 +102,21 @@ def test_insert():
     assert len(new_nodes) == 1
     assert original_uids[0] == uids[0]
     assert original_uids[1:] == uids[2:]
+
+def test_insert_beginning():
+    insert_beginning = doctrees['versioning/insert_beginning']
+    new_nodes = list(merge_doctrees(original, insert_beginning, is_paragraph))
+    uids = [n.uid for n in insert_beginning.traverse(is_paragraph)]
+    assert len(new_nodes) == 1
+    assert len(uids) == 4
+    assert original_uids == uids[1:]
+    assert original_uids[0] != uids[0]
+
+def test_insert_similar():
+    insert_similar = doctrees['versioning/insert_similar']
+    new_nodes = list(merge_doctrees(original, insert_similar, is_paragraph))
+    uids = [n.uid for n in insert_similar.traverse(is_paragraph)]
+    assert len(new_nodes) == 1
+    assert new_nodes[0].rawsource == u'Anyway I need more'
+    assert original_uids[0] == uids[0]
+    assert original_uids[1:] == uids[2:]

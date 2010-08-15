@@ -9,3 +9,5 @@ Versioning Stuff
     deleted
     deleted_end
     modified
+    insert_beginning
+    insert_similar
