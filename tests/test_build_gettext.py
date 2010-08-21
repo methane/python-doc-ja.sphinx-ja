@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
     test_build_gettext
-    ~~~~~~~~~~~~~~~~
+    ~~~~~~~~~~~~~~~~~~
 
     Test the build process with gettext builder with the test root.
 

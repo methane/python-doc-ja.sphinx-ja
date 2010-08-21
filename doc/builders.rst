@@ -230,7 +230,7 @@ Note that a direct PDF builder using ReportLab is available in `rst2pdf
 
    Its name is ``gettext``.
 
-   .. versionadded:: 1.XXX
+   .. versionadded:: 1.1
 
 .. module:: sphinx.builders.changes
 .. class:: ChangesBuilder

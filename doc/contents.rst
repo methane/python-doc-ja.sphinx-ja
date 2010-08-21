@@ -18,6 +18,7 @@ Sphinx documentation contents
    theming
    templating
    extensions
+   websupport
 
    faq
    glossary

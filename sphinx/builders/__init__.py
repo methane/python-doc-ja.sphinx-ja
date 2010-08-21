@@ -311,6 +311,7 @@ class Builder(object):
         """
         Cleanup any resources.  The default implementation does nothing.
         """
+        pass
 
 
 BUILTIN_BUILDERS = {
@@ -329,5 +330,6 @@ BUILTIN_BUILDERS = {
     'man':        ('manpage', 'ManualPageBuilder'),
     'changes':    ('changes', 'ChangesBuilder'),
     'linkcheck':  ('linkcheck', 'CheckExternalLinksBuilder'),
+    'websupport': ('websupport', 'WebSupportBuilder'),
     'gettext':    ('intl', 'MessageCatalogBuilder'),
 }
