@@ -12,7 +12,7 @@
 import sys
 import codecs
 import encodings
-import re
+
 
 try:
     from types import ClassType
@@ -21,10 +21,11 @@ except ImportError:
     # Python 3
     class_types = (type,)
 
+
 try:
     from itertools import product
-except ImportError: # python < 2.6
-    # this code has been taken from the python documentation
+except ImportError: # Python < 2.6
+    # this code has been taken from the Python itertools documentation
     def product(*args, **kwargs):
         pools = map(tuple, args) * kwargs.get('repeat', 1)
         result = [[]]
@@ -33,19 +34,20 @@ except ImportError: # python < 2.6
         for prod in result:
             yield tuple(prod)
 
+
 try:
     from itertools import izip_longest as zip_longest
-except ImportError: # python > 2.6/2.7 or python < 2.6
+except ImportError: # Python < 2.6 or >= 3.0
     try:
         from itertools import zip_longest
-    except ImportError: # python < 2.6
-        # this code has been taken from the python documentation
-        from itertools import repeat, chain, izip
-
-        def zip_longest(*args, **kwargs):
-            fillvalue = kwargs.get('fillvalue')
-            def sentinel(counter=([fillvalue] * (len(args) - 1)).pop):
-                yield counter()
+    except ImportError:
+        from itertools import izip, repeat, chain
+        # this code has been taken from the Python itertools documentation
+        def zip_longest(*args, **kwds):
+            # zip_longest('ABCD', 'xy', fillvalue='-') --> Ax By C- D-
+            fillvalue = kwds.get('fillvalue')
+            def sentinel(counter = ([fillvalue]*(len(args)-1)).pop):
+                yield counter()   # yields the fillvalue, or raises IndexError
             fillers = repeat(fillvalue)
             iters = [chain(it, sentinel(), fillers) for it in args]
             try:
