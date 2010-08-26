@@ -22,7 +22,8 @@ from sphinx.util.console import darkred, nocolor, color_terminal
 
 
 class BuildDoc(Command):
-    """Distutils command to build Sphinx documentation.
+    """
+    Distutils command to build Sphinx documentation.
 
     The Sphinx build can then be triggered from distutils, and some Sphinx
     options can be set in ``setup.py`` or ``setup.cfg`` instead of Sphinx own
@@ -35,13 +36,13 @@ class BuildDoc(Command):
        cmdclass = {'build_sphinx': BuildDoc}
 
        name = 'My project'
-       version = 1.2
-       release = 1.2.0
+       version = '1.2'
+       release = '1.2.0'
        setup(
            name=name,
            author='Bernard Montgomery',
            version=release,
-           cmdclass={'build_sphinx': BuildDoc},
+           cmdclass=cmdclass,
            # these are optional and override conf.py settings
            command_options={
                'build_sphinx': {
@@ -144,7 +145,7 @@ class BuildDoc(Command):
         except Exception, err:
             from docutils.utils import SystemMessage
             if isinstance(err, SystemMessage):
-                sys.stderr, darkred('reST markup error:')
+                print >>sys.stderr, darkred('reST markup error:')
                 print >>sys.stderr, err.args[0].encode('ascii',
                                                        'backslashreplace')
             else:

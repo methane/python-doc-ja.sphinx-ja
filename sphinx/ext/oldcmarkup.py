@@ -18,6 +18,7 @@ WARNING_MSG = 'using old C markup; please migrate to new-style markup ' \
               '(e.g. c:function instead of cfunction), see ' \
               'http://sphinx.pocoo.org/domains.html'
 
+
 class OldCDirective(Directive):
     has_content = True
     required_arguments = 1
@@ -42,6 +43,8 @@ class OldCDirective(Directive):
 
 def old_crole(typ, rawtext, text, lineno, inliner, options={}, content=[]):
     env = inliner.document.settings.env
+    if not typ:
+        typ = env.config.default_role
     if not env.app._oldcmarkup_warned:
         env.warn(env.docname, WARNING_MSG)
         env.app._oldcmarkup_warned = True

@@ -138,7 +138,8 @@ _refuri_re = re.compile("([^#:]*#)(.*)")
 # The epub publisher
 
 class EpubBuilder(StandaloneHTMLBuilder):
-    """Builder that outputs epub files.
+    """
+    Builder that outputs epub files.
 
     It creates the metainfo files container.opf, toc.ncx, mimetype, and
     META-INF/container.xml.  Afterwards, all necessary files are zipped to an
@@ -235,12 +236,12 @@ class EpubBuilder(StandaloneHTMLBuilder):
             })
 
     def fix_fragment(self, prefix, fragment):
-        """Return a href/id attribute with colons replaced by hyphens.
-        """
+        """Return a href/id attribute with colons replaced by hyphens."""
         return prefix + fragment.replace(':', '-')
 
     def fix_ids(self, tree):
         """Replace colons with hyphens in href and id attributes.
+
         Some readers crash because they interpret the part as a
         transport protocol specification.
         """
@@ -259,8 +260,7 @@ class EpubBuilder(StandaloneHTMLBuilder):
             node.attributes['ids'] = newids
 
     def add_visible_links(self, tree):
-        """Append visible link targets after external links.
-        """
+        """Append visible link targets after external links."""
         for node in tree.traverse(nodes.reference):
             uri = node.get('refuri', '')
             if (uri.startswith('http:') or uri.startswith('https:') or
@@ -274,6 +274,7 @@ class EpubBuilder(StandaloneHTMLBuilder):
 
     def write_doc(self, docname, doctree):
         """Write one document file.
+
         This method is overwritten in order to fix fragment identifiers
         and to add visible external links.
         """
@@ -282,8 +283,7 @@ class EpubBuilder(StandaloneHTMLBuilder):
         return StandaloneHTMLBuilder.write_doc(self, docname, doctree)
 
     def fix_genindex(self, tree):
-        """Fix href attributes for genindex pages.
-        """
+        """Fix href attributes for genindex pages."""
         # XXX: modifies tree inline
         # Logic modeled from themes/basic/genindex.html
         for key, columns in tree:
@@ -302,8 +302,9 @@ class EpubBuilder(StandaloneHTMLBuilder):
     def handle_page(self, pagename, addctx, templatename='page.html',
                     outfilename=None, event_arg=None):
         """Create a rendered page.
-        This method is overwritten for genindex pages in order to fix
-        href link attributes.
+
+        This method is overwritten for genindex pages in order to fix href link
+        attributes.
         """
         if pagename.startswith('genindex'):
             self.fix_genindex(addctx['genindexentries'])
@@ -453,6 +454,7 @@ class EpubBuilder(StandaloneHTMLBuilder):
 
     def insert_subnav(self, node, subnav):
         """Insert nested navpoints for given node.
+
         The node and subnav are already rendered to text.
         """
         nlist = node.rsplit('\n', 1)
@@ -462,8 +464,8 @@ class EpubBuilder(StandaloneHTMLBuilder):
     def build_navpoints(self, nodes):
         """Create the toc navigation structure.
 
-        Subelements of a node are nested inside the navpoint.
-        For nested nodes the parent node is reinserted in the subnav.
+        Subelements of a node are nested inside the navpoint.  For nested nodes
+        the parent node is reinserted in the subnav.
         """
         navstack = []
         navlist = []
@@ -503,8 +505,8 @@ class EpubBuilder(StandaloneHTMLBuilder):
         return '\n'.join(navlist)
 
     def toc_metadata(self, level, navpoints):
-        """Create a dictionary with all metadata for the toc.ncx
-        file properly escaped.
+        """Create a dictionary with all metadata for the toc.ncx file
+        properly escaped.
         """
         metadata = {}
         metadata['uid'] = self.config.epub_uid
@@ -529,8 +531,8 @@ class EpubBuilder(StandaloneHTMLBuilder):
     def build_epub(self, outdir, outname):
         """Write the epub file.
 
-        It is a zip file with the mimetype file stored uncompressed
-        as the first entry.
+        It is a zip file with the mimetype file stored uncompressed as the first
+        entry.
         """
         self.info('writing %s file...' % outname)
         projectfiles = ['META-INF/container.xml', 'content.opf', 'toc.ncx'] \

@@ -283,6 +283,7 @@ Project information
 
    Currently supported languages are:
 
+   * ``bn`` -- Bengali
    * ``ca`` -- Catalan
    * ``cs`` -- Czech
    * ``da`` -- Danish
@@ -299,6 +300,7 @@ Project information
    * ``pt_BR`` -- Brazilian Portuguese
    * ``ru`` -- Russian
    * ``sl`` -- Slovenian
+   * ``sv`` -- Swedish
    * ``tr`` -- Turkish
    * ``uk_UA`` -- Ukrainian
    * ``zh_CN`` -- Simplified Chinese
@@ -345,12 +347,12 @@ Project information
 
    A boolean that decides whether module names are prepended to all
    :term:`object` names (for object types where a "module" of some kind is
-   defined), e.g. for :rst:dir:`function` directives.  Default is ``True``.
+   defined), e.g. for :rst:dir:`py:function` directives.  Default is ``True``.
 
 .. confval:: show_authors
 
-   A boolean that decides whether :rst:dir:`moduleauthor` and :rst:dir:`sectionauthor`
-   directives produce any output in the built files.
+   A boolean that decides whether :rst:dir:`codeauthor` and
+   :rst:dir:`sectionauthor` directives produce any output in the built files.
 
 .. confval:: modindex_common_prefix
 
@@ -386,6 +388,8 @@ Options for HTML output
 
 These options influence HTML as well as HTML Help output, and other builders
 that use Sphinx' HTMLWriter class.
+
+.. XXX document html_context
 
 .. confval:: html_theme
 
@@ -551,19 +555,6 @@ that use Sphinx' HTMLWriter class.
 
    This will render the template ``customdownload.html`` as the page
    ``download.html``.
-
-   .. note::
-
-      Earlier versions of Sphinx had a value called :confval:`html_index` which
-      was a clumsy way of controlling the content of the "index" document.  If
-      you used this feature, migrate it by adding an ``'index'`` key to this
-      setting, with your custom template as the value, and in your custom
-      template, use ::
-
-         {% extend "defindex.html" %}
-         {% block tables %}
-         ... old template content ...
-         {% endblock %}
 
 .. confval:: html_domain_indices
 
@@ -766,6 +757,8 @@ the `Dublin Core metadata <http://dublincore.org/>`_.
       epub_cover = ()
 
    The default value is ``()``.
+
+   .. versionadded:: 1.1
 
 .. confval:: epub_pre_files
 

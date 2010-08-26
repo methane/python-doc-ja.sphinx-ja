@@ -12,7 +12,7 @@ interesting examples.
 Documentation using the default theme
 -------------------------------------
 
-* APSW: http://apsw.googlecode.com/svn/publish/index.html
+* APSW: http://apidoc.apsw.googlecode.com/hg/index.html
 * ASE: https://wiki.fysik.dtu.dk/ase/
 * boostmpi: http://documen.tician.de/boostmpi/
 * Calibre: http://calibre.kovidgoyal.net/user_manual/
@@ -97,6 +97,7 @@ Documentation using the sphinxdoc theme
 * Satchmo: http://www.satchmoproject.com/docs/svn/
 * Sphinx: http://sphinx.pocoo.org/
 * Sqlkit: http://sqlkit.argolinux.org/
+* Tau: http://www.tango-controls.org/static/tau/latest/doc/html/index.html
 * Total Open Station: http://tops.berlios.de/
 * WebFaction: http://docs.webfaction.com/
 

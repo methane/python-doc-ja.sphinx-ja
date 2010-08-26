@@ -37,9 +37,6 @@ from sphinx.util.osutil import ENOENT
 from sphinx.util.console import bold
 
 
-# Directive is either new-style or old-style
-clstypes = (type, types.ClassType)
-
 # List of all known core events. Maps name to arguments description.
 events = {
     'builder-inited': '',
@@ -136,9 +133,8 @@ class Sphinx(object):
         self._init_builder(buildername)
 
     def _init_i18n(self):
-        """
-        Load translated strings from the configured localedirs if
-        enabled in the configuration.
+        """Load translated strings from the configured localedirs if enabled in
+        the configuration.
         """
         if self.config.language is not None:
             self.info(bold('loading translations [%s]... ' %
@@ -456,8 +452,11 @@ class Sphinx(object):
 
     def add_javascript(self, filename):
         from sphinx.builders.html import StandaloneHTMLBuilder
-        StandaloneHTMLBuilder.script_files.append(
-            posixpath.join('_static', filename))
+        if '://' in filename:
+            StandaloneHTMLBuilder.script_files.append(filename)
+        else:
+            StandaloneHTMLBuilder.script_files.append(
+                posixpath.join('_static', filename))
 
     def add_stylesheet(self, filename):
         from sphinx.builders.html import StandaloneHTMLBuilder
@@ -487,8 +486,7 @@ class TemplateBridge(object):
     """
 
     def init(self, builder, theme=None, dirs=None):
-        """
-        Called by the builder to initialize the template system.
+        """Called by the builder to initialize the template system.
 
         *builder* is the builder object; you'll probably want to look at the
         value of ``builder.config.templates_path``.
@@ -499,23 +497,20 @@ class TemplateBridge(object):
         raise NotImplementedError('must be implemented in subclasses')
 
     def newest_template_mtime(self):
-        """
-        Called by the builder to determine if output files are outdated
+        """Called by the builder to determine if output files are outdated
         because of template changes.  Return the mtime of the newest template
         file that was changed.  The default implementation returns ``0``.
         """
         return 0
 
     def render(self, template, context):
-        """
-        Called by the builder to render a template given as a filename with a
-        specified context (a Python dictionary).
+        """Called by the builder to render a template given as a filename with
+        a specified context (a Python dictionary).
         """
         raise NotImplementedError('must be implemented in subclasses')
 
     def render_string(self, template, context):
-        """
-        Called by the builder to render a template given as a string with a
+        """Called by the builder to render a template given as a string with a
         specified context (a Python dictionary).
         """
         raise NotImplementedError('must be implemented in subclasses')

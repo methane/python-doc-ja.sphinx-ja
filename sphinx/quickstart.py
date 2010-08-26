@@ -9,8 +9,9 @@
     :license: BSD, see LICENSE for details.
 """
 
-import sys, os, time
+import sys, os, time, re
 from os import path
+from codecs import open
 
 TERM_ENCODING = getattr(sys.stdin, 'encoding', None)
 
@@ -20,10 +21,23 @@ from sphinx.util.console import purple, bold, red, turquoise, \
      nocolor, color_terminal
 from sphinx.util import texescape
 
+# function to get input from terminal -- overridden by the test suite
+try:
+    # this raw_input is not converted by 2to3
+    term_input = raw_input
+except NameError:
+    term_input = input
+
 
 PROMPT_PREFIX = '> '
 
-QUICKSTART_CONF = '''\
+if sys.version_info >= (3, 0):
+    # prevents that the file is checked for being written in Python 2.x syntax
+    QUICKSTART_CONF = '#!/usr/bin/env python3\n'
+else:
+    QUICKSTART_CONF = ''
+
+QUICKSTART_CONF += '''\
 # -*- coding: utf-8 -*-
 #
 # %(project)s documentation build configuration file, created by
@@ -333,7 +347,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) \
 $(SPHINXOPTS) %(rsrcdir)s
 
 .PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp \
-epub latex latexpdf text man changes linkcheck doctest
+epub latex latexpdf text man changes linkcheck doctest gettext
 
 help:
 \t@echo "Please use \\`make <target>' where <target> is one of"
@@ -350,6 +364,7 @@ help:
 \t@echo "  latexpdf   to make LaTeX files and run them through pdflatex"
 \t@echo "  text       to make text files"
 \t@echo "  man        to make manual pages"
+\t@echo "  gettext    to make PO message catalogs"
 \t@echo "  changes    to make an overview of all changed/added/deprecated items"
 \t@echo "  linkcheck  to check all external links for integrity"
 \t@echo "  doctest    to run all doctests embedded in the documentation \
@@ -436,6 +451,11 @@ man:
 \t@echo
 \t@echo "Build finished. The manual pages are in $(BUILDDIR)/man."
 
+gettext:
+\t$(SPHINXBUILD) -b gettext $(ALLSPHINXOPTS) $(BUILDDIR)/locale
+\t@echo
+\t@echo "Build finished. The message catalogs are in $(BUILDDIR)/locale."
+
 changes:
 \t$(SPHINXBUILD) -b changes $(ALLSPHINXOPTS) $(BUILDDIR)/changes
 \t@echo
@@ -484,6 +504,7 @@ if "%%1" == "help" (
 \techo.  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter
 \techo.  text       to make text files
 \techo.  man        to make manual pages
+\techo.  gettext    to make PO message catalogs
 \techo.  changes    to make an overview over all changed/added/deprecated items
 \techo.  linkcheck  to check all external links for integrity
 \techo.  doctest    to run all doctests embedded in the documentation if enabled
@@ -585,6 +606,13 @@ if "%%1" == "man" (
 \tgoto end
 )
 
+if "%%1" == "gettext" (
+\t%%SPHINXBUILD%% -b gettext %%ALLSPHINXOPTS%% %%BUILDDIR%%/locale
+\techo.
+\techo.Build finished. The message catalogs are in %%BUILDDIR%%/locale.
+\tgoto end
+)
+
 if "%%1" == "changes" (
 \t%%SPHINXBUILD%% -b changes %%ALLSPHINXOPTS%% %%BUILDDIR%%/changes
 \techo.
@@ -659,20 +687,22 @@ def do_prompt(d, key, text, default=None, validator=nonempty):
             prompt = purple(PROMPT_PREFIX + '%s [%s]: ' % (text, default))
         else:
             prompt = purple(PROMPT_PREFIX + text + ': ')
-        x = raw_input(prompt)
+        x = term_input(prompt)
         if default and not x:
             x = default
-        if x.decode('ascii', 'replace').encode('ascii', 'replace') != x:
-            if TERM_ENCODING:
-                x = x.decode(TERM_ENCODING)
-            else:
-                print turquoise('* Note: non-ASCII characters entered '
-                                'and terminal encoding unknown -- assuming '
-                                'UTF-8 or Latin-1.')
-                try:
-                    x = x.decode('utf-8')
-                except UnicodeDecodeError:
-                    x = x.decode('latin1')
+        if not isinstance(x, unicode):
+            # for Python 2.x, try to get a Unicode string out of it
+            if x.decode('ascii', 'replace').encode('ascii', 'replace') != x:
+                if TERM_ENCODING:
+                    x = x.decode(TERM_ENCODING)
+                else:
+                    print turquoise('* Note: non-ASCII characters entered '
+                                    'and terminal encoding unknown -- assuming '
+                                    'UTF-8 or Latin-1.')
+                    try:
+                        x = x.decode('utf-8')
+                    except UnicodeDecodeError:
+                        x = x.decode('latin1')
         try:
             x = validator(x)
         except ValidationError, err:
@@ -680,6 +710,18 @@ def do_prompt(d, key, text, default=None, validator=nonempty):
             continue
         break
     d[key] = x
+
+
+if sys.version_info >= (3, 0):
+    # remove Unicode literal prefixes
+    _unicode_string_re = re.compile(r"[uU]('.*?')")
+    def _convert_python_source(source):
+        return _unicode_string_re.sub('\\1', source)
+
+    for f in ['QUICKSTART_CONF', 'EPUB_CONFIG', 'INTERSPHINX_CONFIG']:
+        globals()[f] = _convert_python_source(globals()[f])
+
+    del _unicode_string_re, _convert_python_source
 
 
 def inner_main(args):
@@ -837,28 +879,28 @@ directly.'''
     if d['ext_intersphinx']:
         conf_text += INTERSPHINX_CONFIG
 
-    f = open(path.join(srcdir, 'conf.py'), 'w')
-    f.write(conf_text.encode('utf-8'))
+    f = open(path.join(srcdir, 'conf.py'), 'w', encoding='utf-8')
+    f.write(conf_text)
     f.close()
 
     masterfile = path.join(srcdir, d['master'] + d['suffix'])
-    f = open(masterfile, 'w')
-    f.write((MASTER_FILE % d).encode('utf-8'))
+    f = open(masterfile, 'w', encoding='utf-8')
+    f.write(MASTER_FILE % d)
     f.close()
 
     if d['makefile']:
         d['rsrcdir'] = d['sep'] and 'source' or '.'
         d['rbuilddir'] = d['sep'] and 'build' or d['dot'] + 'build'
         # use binary mode, to avoid writing \r\n on Windows
-        f = open(path.join(d['path'], 'Makefile'), 'wb')
-        f.write((MAKEFILE % d).encode('utf-8'))
+        f = open(path.join(d['path'], 'Makefile'), 'wb', encoding='utf-8')
+        f.write(MAKEFILE % d)
         f.close()
 
     if d['batchfile']:
         d['rsrcdir'] = d['sep'] and 'source' or '.'
         d['rbuilddir'] = d['sep'] and 'build' or d['dot'] + 'build'
-        f = open(path.join(d['path'], 'make.bat'), 'w')
-        f.write((BATCHFILE % d).encode('utf-8'))
+        f = open(path.join(d['path'], 'make.bat'), 'w', encoding='utf-8')
+        f.write(BATCHFILE % d)
         f.close()
 
     print
