@@ -5,7 +5,7 @@
 
     Test the build process with Texinfo builder with the test root.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -14,6 +14,8 @@ import re
 import sys
 from StringIO import StringIO
 from subprocess import Popen, PIPE
+
+from sphinx.writers.texinfo import TexinfoTranslator
 
 from util import *
 from test_build_html import ENV_WARNINGS
@@ -25,7 +27,9 @@ def teardown_module():
 
 texinfo_warnfile = StringIO()
 
-TEXINFO_WARNINGS = ENV_WARNINGS
+TEXINFO_WARNINGS = ENV_WARNINGS + """\
+None:None: WARNING: no matching candidate for image URI u'foo.\\*'
+"""
 
 if sys.version_info >= (3, 0):
     TEXINFO_WARNINGS = remove_unicode_literals(TEXINFO_WARNINGS)
@@ -33,6 +37,7 @@ if sys.version_info >= (3, 0):
 
 @with_app(buildername='texinfo', warning=texinfo_warnfile, cleanenv=True)
 def test_texinfo(app):
+    TexinfoTranslator.ignore_missing_images = True
     app.builder.build_all()
     texinfo_warnings = texinfo_warnfile.getvalue().replace(os.sep, '/')
     texinfo_warnings_exp = TEXINFO_WARNINGS % {'root': app.srcdir}

@@ -5,7 +5,7 @@
 
     Server side search support for the web support package.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -112,6 +112,11 @@ class BaseSearch(object):
             return unicode(context, errors='ignore')
         except TypeError:
             return context
+
+    def context_for_searchtool(self):
+        """Required by the HTML builder."""
+        return {}
+
 
 # The built-in search adapters.
 SEARCH_ADAPTERS = {

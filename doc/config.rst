@@ -499,20 +499,18 @@ that use Sphinx' HTMLWriter class.
 
 .. confval:: html_add_permalinks
 
-   If true, Sphinx will add "permalinks" for each heading and description
-   environment as paragraph signs that become visible when the mouse hovers over
-   them.  Default: ``True``.
+   Sphinx will add "permalinks" for each heading and description environment as
+   paragraph signs that become visible when the mouse hovers over them.
+
+   This value determines the text for the permalink; it defaults to ``"¶"``.
+   Set it to ``None`` or the empty string to disable permalinks.
 
    .. versionadded:: 0.6
       Previously, this was always activated.
 
-.. confval:: html_permalink_text
-
-   A string specifying the text which should be used for "permalinks".
-   Default: ``u'\u00B6'``.
-
-   .. versionadded:: 1.1
-      Previously, this was always the current default value.
+   .. versionchanged:: 1.1
+      This can now be a string to select the actual text of the link.
+      Previously, only boolean values were accepted.
 
 .. confval:: html_sidebars
 
@@ -696,6 +694,38 @@ that use Sphinx' HTMLWriter class.
 
    .. versionadded:: 1.0
 
+.. confval:: html_search_language
+
+   Language to be used for generating the HTML full-text search index.  This
+   defaults to the global language selected with :confval:`language`.  If there
+   is no support for this language, ``"en"`` is used which selects the English
+   language.
+
+   Support is present for these languages:
+
+   * ``en`` -- English
+   * ``ja`` -- Japanese
+
+   .. versionadded:: 1.1
+
+.. confval:: html_search_options
+
+   A dictionary with options for the search language support, empty by default.
+   The meaning of these options depends on the language selected.
+
+   The English support has no options.
+
+   The Japanese support has these options:
+
+   * ``type`` -- ``'mecab'`` or ``'default'`` (selects either MeCab or
+     TinySegmenter word splitter algorithm)
+   * ``dic_enc`` -- the encoding for the MeCab algorithm
+   * ``dict`` -- the dictionary to use for the MeCab algorithm
+   * ``lib`` -- the library name for finding the MeCab library via ctypes if the
+     Python binding is not installed
+
+   .. versionadded:: 1.1
+
 .. confval:: htmlhelp_basename
 
    Output file base name for HTML help builder.  Default is ``'pydoc'``.
@@ -819,6 +849,7 @@ the `Dublin Core metadata <http://dublincore.org/>`_.
    it's nested toc listing.  This allows easier navitation to the top of
    a chapter, but can be confusing because it mixes entries of differnet
    depth in one list.  The default value is ``True``.
+
 
 .. _latex-options:
 
@@ -1018,6 +1049,37 @@ These options influence LaTeX output.
       Use the ``'pointsize'`` key in the :confval:`latex_elements` value.
 
 
+.. _text-options:
+
+Options for text output
+-----------------------
+
+These options influence text output.
+
+.. confval:: text_newlines
+
+   Determines which end-of-line character(s) are used in text output.
+
+   * ``'unix'``: use Unix-style line endings (``\n``)
+   * ``'windows'``: use Windows-style line endings (``\r\n``)
+   * ``'native'``: use the line ending style of the platform the documentation
+     is built on
+
+   Default: ``'unix'``.
+
+   .. versionadded:: 1.1
+
+.. confval:: text_sectionchars
+
+   A string of 7 characters that should be used for underlining sections.
+   The first character is used for first-level headings, the second for
+   second-level headings and so on.
+
+   The default is ``'*=-~"+`'``.
+
+   .. versionadded:: 1.1
+
+
 .. _man-options:
 
 Options for manual page output
@@ -1047,6 +1109,12 @@ These options influence manual page output.
      as in the manual page header.
 
    .. versionadded:: 1.0
+
+.. confval:: man_show_urls
+
+   If true, add URL addresses after links.  Default is ``False``.
+
+   .. versionadded:: 1.1
 
 
 .. _texinfo-options:
@@ -1131,6 +1199,21 @@ Options for the linkcheck builder
    when doing a ``linkcheck`` build.  Example::
 
       linkcheck_ignore = [r'http://localhost:\d+/']
+
+   .. versionadded:: 1.1
+
+.. confval:: linkcheck_timeout
+
+   A timeout value, in seconds, for the linkcheck builder.  **Only works in
+   Python 2.6 and higher.**  The default is to use Python's global socket
+   timeout.
+
+   .. versionadded:: 1.1
+
+.. confval:: linkcheck_workers
+
+   The number of worker threads to use when checking links.  Default is 5
+   threads.
 
    .. versionadded:: 1.1
 

@@ -5,7 +5,7 @@
 
     The C++ language domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -150,12 +150,12 @@ class DefExpr(object):
         return None
 
     def split_owner(self):
-        """Nodes returned by :meth:`get_name` can split off their owning parent.
-
-        This function returns the owner and the name as a tuple of two items.
-        If a node does not support it, :exc:`NotImplementedError` is raised.
+        """Nodes returned by :meth:`get_name` can split off their
+        owning parent.  This function returns the owner and the
+        name as a tuple of two items.  If a node does not support
+        it, it returns None as owner and self as name.
         """
-        raise NotImplementedError()
+        return None, self
 
     def prefix(self, prefix):
         """Prefix a name node (a node returned by :meth:`get_name`)."""
@@ -172,9 +172,6 @@ class PrimaryDefExpr(DefExpr):
 
     def get_name(self):
         return self
-
-    def split_owner(self):
-        return None, self
 
     def prefix(self, prefix):
         if isinstance(prefix, PathDefExpr):
@@ -326,9 +323,8 @@ class ArgumentDefExpr(DefExpr):
         return self.type.get_id()
 
     def __unicode__(self):
-        return (self.type is not None and u'%s %s' % (self.type, self.name)
-                or unicode(self.name)) + (self.default is not None and
-                                          u'=%s' % self.default or u'')
+        return (u'%s %s' % (self.type or u'', self.name or u'')).strip() + \
+               (self.default is not None and u'=%s' % self.default or u'')
 
 
 class NamedDefExpr(DefExpr):
@@ -448,9 +444,9 @@ class DefinitionParser(object):
         'mutable':      None,
         'const':        None,
         'typename':     None,
-        'unsigned':     set(('char', 'int', 'long')),
-        'signed':       set(('char', 'int', 'long')),
-        'short':        set(('int', 'short')),
+        'unsigned':     set(('char', 'short', 'int', 'long')),
+        'signed':       set(('char', 'short', 'int', 'long')),
+        'short':        set(('int',)),
         'long':         set(('int', 'long', 'double'))
     }
 

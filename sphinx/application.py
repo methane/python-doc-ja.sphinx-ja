@@ -7,7 +7,7 @@
 
     Gracefully adapted from the TextPress system by Armin.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -486,6 +486,11 @@ class Sphinx(object):
     def add_autodoc_attrgetter(self, type, getter):
         from sphinx.ext import autodoc
         autodoc.AutoDirective._special_attrgetters[type] = getter
+
+    def add_search_language(self, cls):
+        from sphinx.search import languages, SearchLanguage
+        assert isinstance(cls, SearchLanguage)
+        languages[cls.lang] = cls
 
 
 class TemplateBridge(object):

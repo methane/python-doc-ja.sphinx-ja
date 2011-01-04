@@ -5,7 +5,7 @@
 
     Global creation environment.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -18,6 +18,7 @@ import codecs
 import imghdr
 import string
 import posixpath
+import unicodedata
 import cPickle as pickle
 from os import path
 from glob import glob
@@ -215,7 +216,7 @@ class Locale(Transform):
                 continue
             parser.parse(msgstr, patch)
             patch = patch[0]
-            #XXX doctest and other block markup
+            # XXX doctest and other block markup
             if not isinstance(patch, nodes.paragraph):
                 continue # skip for now
             for child in patch.children: # update leaves
@@ -565,8 +566,7 @@ class BuildEnvironment:
                 self.clear_doc(docname)
 
             # read all new and changed files
-            to_read = added | changed
-            for docname in sorted(to_read):
+            for docname in sorted(added | changed):
                 yield docname
                 self.read_doc(docname, app=app)
 
@@ -1532,7 +1532,7 @@ class BuildEnvironment:
         # sort the index entries; put all symbols at the front, even those
         # following the letters in ASCII, this is where the chr(127) comes from
         def keyfunc(entry, lcletters=string.ascii_lowercase + '_'):
-            lckey = entry[0].lower()
+            lckey = unicodedata.normalize('NFD', entry[0].lower())
             if lckey[0:1] in lcletters:
                 return chr(127) + lckey
             return lckey
@@ -1575,7 +1575,7 @@ class BuildEnvironment:
             k, v = item
             v[1] = sorted((si, se) for (si, (se, void)) in v[1].iteritems())
             # now calculate the key
-            letter = k[0].upper()
+            letter = unicodedata.normalize('NFD', k[0])[0].upper()
             if letter in letters:
                 return letter
             else:

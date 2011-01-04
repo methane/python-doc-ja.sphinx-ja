@@ -5,7 +5,7 @@
 
     Several HTML builders.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -103,15 +103,21 @@ class StandaloneHTMLBuilder(Builder):
             self.link_suffix = self.out_suffix
 
         if self.config.language is not None:
-            jsfile_list = [path.join(package_dir, 'locale',
-                self.config.language, 'LC_MESSAGES', 'sphinx.js'),
-                path.join(sys.prefix, 'share/sphinx/locale',
-                    self.config.language, 'sphinx.js')]
+            if self._get_translations_js():
+                self.script_files.append('_static/translations.js')
 
-            for jsfile in jsfile_list:
-                if path.isfile(jsfile):
-                    self.script_files.append('_static/translations.js')
-                    break
+    def _get_translations_js(self):
+        candidates = [path.join(package_dir, 'locale', self.config.language,
+                                'LC_MESSAGES', 'sphinx.js'),
+                      path.join(sys.prefix, 'share/sphinx/locale',
+                                self.config.language, 'sphinx.js')] + \
+                     [path.join(dir, self.config.language,
+                                'LC_MESSAGES', 'sphinx.js')
+                      for dir in self.config.locale_dirs]
+        for jsfile in candidates:
+            if path.isfile(jsfile):
+                return jsfile
+        return None
 
     def get_theme_config(self):
         return self.config.html_theme, self.config.html_theme_options
@@ -226,10 +232,15 @@ class StandaloneHTMLBuilder(Builder):
         return pub.writer.parts
 
     def prepare_writing(self, docnames):
-        from sphinx.search import IndexBuilder
-
-        self.indexer = IndexBuilder(self.env)
+        # create the search indexer
+        from sphinx.search import IndexBuilder, languages
+        lang = self.config.html_search_language or self.config.language
+        if not lang or lang not in languages:
+            lang = 'en'
+        self.indexer = IndexBuilder(self.env, lang,
+                                    self.config.html_search_options)
         self.load_indexer(docnames)
+
         self.docwriter = HTMLWriter(self)
         self.docsettings = OptionParser(
             defaults=self.env.settings,
@@ -529,22 +540,22 @@ class StandaloneHTMLBuilder(Builder):
         f.close()
         # then, copy translations JavaScript file
         if self.config.language is not None:
-            jsfile_list = [path.join(package_dir, 'locale',
-                self.config.language, 'LC_MESSAGES', 'sphinx.js'),
-                path.join(sys.prefix, 'share/sphinx/locale',
-                    self.config.language, 'sphinx.js')]
-            for jsfile in jsfile_list:
-                if path.isfile(jsfile):
-                    copyfile(jsfile, path.join(self.outdir, '_static',
-                                               'translations.js'))
-                    break
+            jsfile = self._get_translations_js()
+            if jsfile:
+                copyfile(jsfile, path.join(self.outdir, '_static',
+                                           'translations.js'))
+
+        # add context items for search function used in searchtools.js_t
+        ctx = self.globalcontext.copy()
+        ctx.update(self.indexer.context_for_searchtool())
+
         # then, copy over theme-supplied static files
         if self.theme:
             themeentries = [path.join(themepath, 'static')
                             for themepath in self.theme.get_dirchain()[::-1]]
             for entry in themeentries:
                 copy_static_entry(entry, path.join(self.outdir, '_static'),
-                                  self, self.globalcontext)
+                                  self, ctx)
         # then, copy over all user-supplied static files
         staticentries = [path.join(self.confdir, spath)
                          for spath in self.config.html_static_path]
@@ -557,7 +568,7 @@ class StandaloneHTMLBuilder(Builder):
                 self.warn('html_static_path entry %r does not exist' % entry)
                 continue
             copy_static_entry(entry, path.join(self.outdir, '_static'), self,
-                              self.globalcontext, exclude_matchers=matchers)
+                              ctx, exclude_matchers=matchers)
         # copy logo and favicon files if not already in static path
         if self.config.html_logo:
             logobase = path.basename(self.config.html_logo)
@@ -696,7 +707,10 @@ class StandaloneHTMLBuilder(Builder):
             return uri
         ctx['pathto'] = pathto
         ctx['hasdoc'] = lambda name: name in self.env.all_docs
-        ctx['encoding'] = encoding = self.config.html_output_encoding
+        if self.name != 'htmlhelp':
+            ctx['encoding'] = encoding = self.config.html_output_encoding
+        else:
+            ctx['encoding'] = encoding = self.encoding
         ctx['toctree'] = lambda **kw: self._get_local_toctree(pagename, **kw)
         self.add_sidebars(pagename, ctx)
         ctx.update(addctx)
@@ -717,7 +731,7 @@ class StandaloneHTMLBuilder(Builder):
         # outfilename's path is in general different from self.outdir
         ensuredir(path.dirname(outfilename))
         try:
-            f = codecs.open(outfilename, 'w', encoding)
+            f = codecs.open(outfilename, 'w', encoding, 'xmlcharrefreplace')
             try:
                 f.write(output)
             finally:

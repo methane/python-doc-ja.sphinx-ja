@@ -5,7 +5,7 @@
 
     Build configuration file handling.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -92,8 +92,7 @@ class Config(object):
         html_additional_pages = ({}, 'html'),
         html_use_modindex = (True, 'html'),  # deprecated
         html_domain_indices = (True, 'html'),
-        html_add_permalinks = (True, 'html'),
-        html_permalink_text = (u'\u00B6', 'html'),
+        html_add_permalinks = (u'\u00B6', 'html'),
         html_use_index = (True, 'html'),
         html_split_index = (False, 'html'),
         html_copy_source = (True, 'html'),
@@ -107,6 +106,8 @@ class Config(object):
         html_output_encoding = ('utf-8', 'html'),
         html_compact_lists = (True, 'html'),
         html_secnumber_suffix = ('. ', 'html'),
+        html_search_language = (None, 'html'),
+        html_search_options = ({}, 'html'),
 
         # HTML help only options
         htmlhelp_basename = (lambda self: make_filename(self.project), None),
@@ -155,11 +156,12 @@ class Config(object):
         latex_preamble = ('', None),
 
         # text options
-        text_sectionchars = ('*=-~"+`', 'text'),
-        text_windows_newlines = (False, 'text'),
+        text_sectionchars = ('*=-~"+`', 'env'),
+        text_newlines = ('unix', 'env'),
 
         # manpage options
         man_pages = ([], None),
+        man_show_urls = (False, None),
 
         # Texinfo options
         texinfo_documents = ([], None),
@@ -169,6 +171,8 @@ class Config(object):
 
         # linkcheck options
         linkcheck_ignore = ([], None),
+        linkcheck_timeout = (None, None),
+        linkcheck_workers = (5, None),
     )
 
     def __init__(self, dirname, filename, overrides, tags):

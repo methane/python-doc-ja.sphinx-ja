@@ -5,7 +5,7 @@
 
     Quickly setup documentation source to work with Sphinx.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -254,6 +254,9 @@ man_pages = [
     ('%(master_str)s', '%(project_manpage)s', u'%(project_doc)s',
      [u'%(author_str)s'], 1)
 ]
+
+# If true, show URL addresses after external links.
+#man_show_urls = False
 
 # -- Options for Texinfo output ------------------------------------------------
 
@@ -784,14 +787,24 @@ def inner_main(args):
     if not color_terminal():
         nocolor()
 
+    if len(args) > 3:
+        print 'Usage: sphinx-quickstart [root]'
+        sys.exit(1)
+    elif len(args) == 2:
+        d['path'] = args[1]
+
     print bold('Welcome to the Sphinx %s quickstart utility.') % __version__
     print '''
 Please enter values for the following settings (just press Enter to
 accept a default value, if one is given in brackets).'''
 
-    print '''
+    if 'path' in d:
+        print bold('''
+Selected root path: %s''' % d['path'])
+    else:
+        print '''
 Enter the root path for documentation.'''
-    do_prompt(d, 'path', 'Root path for the documentation', '.', is_path)
+        do_prompt(d, 'path', 'Root path for the documentation', '.', is_path)
 
     while path.isfile(path.join(d['path'], 'conf.py')) or \
           path.isfile(path.join(d['path'], 'source', 'conf.py')):

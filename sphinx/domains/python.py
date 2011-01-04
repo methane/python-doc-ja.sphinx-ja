@@ -5,7 +5,7 @@
 
     The Python domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -94,10 +94,12 @@ class PyObject(ObjectDescription):
         TypedField('parameter', label=l_('Parameters'),
                    names=('param', 'parameter', 'arg', 'argument',
                           'keyword', 'kwarg', 'kwparam'),
-                   typerolename='obj', typenames=('paramtype', 'type')),
+                   typerolename='obj', typenames=('paramtype', 'type'),
+                   can_collapse=True),
         TypedField('variable', label=l_('Variables'), rolename='obj',
                    names=('var', 'ivar', 'cvar'),
-                   typerolename='obj', typenames=('vartype',)),
+                   typerolename='obj', typenames=('vartype',),
+                   can_collapse=True),
         GroupedField('exceptions', label=l_('Raises'), rolename='exc',
                      names=('raises', 'raise', 'exception', 'except'),
                      can_collapse=True),
