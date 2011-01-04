@@ -5,7 +5,7 @@
 
     Glue code for the jinja2 templating engine.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -37,8 +37,10 @@ def accesskey(context, key):
 
 
 class SphinxFileSystemLoader(FileSystemLoader):
-    """FileSystemLoader subclass that is not so strict about '..'
-    entries in template names."""
+    """
+    FileSystemLoader subclass that is not so strict about '..'  entries in
+    template names.
+    """
 
     def get_source(self, environment, template):
         for searchpath in self.searchpath:

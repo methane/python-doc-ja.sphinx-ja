@@ -3,7 +3,7 @@
     Sphinx test suite utilities
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -25,12 +25,12 @@ from sphinx.ext.autodoc import AutoDirective
 
 from path import path
 
-from nose import tools
+from nose import tools, SkipTest
 
 
 __all__ = [
-    'test_root',
-    'raises', 'raises_msg', 'Struct',
+    'test_root', 'raises', 'raises_msg',
+    'skip_if', 'skip_unless', 'skip_unless_importable', 'Struct',
     'ListOutput', 'TestApp', 'with_app', 'gen_with_app',
     'path', 'with_tempdir', 'write_file',
     'sprint', 'remove_unicode_literals',
@@ -70,6 +70,30 @@ def raises_msg(exc, msg, func, *args, **kwds):
     else:
         raise AssertionError('%s did not raise %s' %
                              (func.__name__, _excstr(exc)))
+
+def skip_if(condition, msg=None):
+    """Decorator to skip test if condition is true."""
+    def deco(test):
+        @tools.make_decorator(test)
+        def skipper(*args, **kwds):
+            if condition:
+                raise SkipTest(msg or 'conditional skip')
+            return test(*args, **kwds)
+        return skipper
+    return deco
+
+def skip_unless(condition, msg=None):
+    """Decorator to skip test if condition is false."""
+    return skip_if(not condition, msg)
+
+def skip_unless_importable(module, msg=None):
+    """Decorator to skip test if module is not importable."""
+    try:
+        __import__(module)
+    except ImportError:
+        return skip_if(True, msg)
+    else:
+        return skip_if(False, msg)
 
 
 class Struct(object):

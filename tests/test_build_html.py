@@ -5,7 +5,7 @@
 
     Test the HTML builder and check output against XPath.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -32,13 +32,16 @@ def teardown_module():
 html_warnfile = StringIO()
 
 ENV_WARNINGS = """\
+%(root)s/autodoc_fodder.py:docstring of autodoc_fodder\\.MarkupError:2: \
+\\(WARNING/2\\) Explicit markup ends without a blank line; unexpected \
+unindent\\.\\n?
 %(root)s/images.txt:9: WARNING: image file not readable: foo.png
 %(root)s/images.txt:23: WARNING: nonlocal image URI found: \
 http://www.python.org/logo.png
 %(root)s/includes.txt:\\d*: \\(WARNING/2\\) Encoding 'utf-8-sig' used for \
-reading included file u'wrongenc.inc' seems to be wrong, try giving an \
+reading included file u'.*?wrongenc.inc' seems to be wrong, try giving an \
 :encoding: option\\n?
-%(root)s/includes.txt:4: WARNING: download file not readable: nonexisting.png
+%(root)s/includes.txt:4: WARNING: download file not readable: .*?nonexisting.png
 %(root)s/objects.txt:\\d*: WARNING: using old C markup; please migrate to \
 new-style markup \(e.g. c:function instead of cfunction\), see \
 http://sphinx.pocoo.org/domains.html
@@ -190,9 +193,13 @@ HTML_XPATH = {
         # custom sidebar
         (".//h4", 'Custom sidebar'),
         # docfields
-        (".//td[@class='field-body']/ul/li/strong", '^moo$'),
-        (".//td[@class='field-body']/ul/li/strong",
+        (".//td[@class='field-body']/strong", '^moo$'),
+        (".//td[@class='field-body']/strong",
              tail_check(r'\(Moo\) .* Moo')),
+        (".//td[@class='field-body']/ul/li/strong", '^hour$'),
+        (".//td[@class='field-body']/ul/li/em", '^DuplicateType$'),
+        (".//td[@class='field-body']/ul/li/em",
+             tail_check(r'.* Some parameter')),
     ],
     'contents.html': [
         (".//meta[@name='hc'][@content='hcval']", ''),
@@ -211,6 +218,8 @@ HTML_XPATH = {
         (".//li/a[@href='search.html']/em", 'Search Page'),
         # custom sidebar only for contents
         (".//h4", 'Contents sidebar'),
+        # custom JavaScript
+        (".//script[@src='file://moo.js']", ''),
     ],
     'bom.html': [
         (".//title", " File with UTF-8 BOM"),

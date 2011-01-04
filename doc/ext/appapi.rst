@@ -76,9 +76,9 @@ the following public API:
 
    Node visitor functions for the Sphinx HTML, LaTeX, text and manpage writers
    can be given as keyword arguments: the keyword must be one or more of
-   ``'html'``, ``'latex'``, ``'text'``, ``'man'``, the value a 2-tuple of
-   ``(visit, depart)`` methods.  ``depart`` can be ``None`` if the ``visit``
-   function raises :exc:`docutils.nodes.SkipNode`.  Example:
+   ``'html'``, ``'latex'``, ``'text'``, ``'man'``, ``'texinfo'``, the value a
+   2-tuple of ``(visit, depart)`` methods.  ``depart`` can be ``None`` if the
+   ``visit`` function raises :exc:`docutils.nodes.SkipNode`.  Example:
 
    .. code-block:: python
 
@@ -246,7 +246,8 @@ the following public API:
 
    Add *filename* to the list of JavaScript files that the default HTML template
    will include.  The filename must be relative to the HTML static path, see
-   :confval:`the docs for the config value <html_static_path>`.
+   :confval:`the docs for the config value <html_static_path>`.  A full URI with
+   scheme, like ``http://example.org/foo.js``, is also supported.
 
    .. versionadded:: 0.5
 
@@ -284,6 +285,15 @@ the following public API:
    type are then handled by this function instead of :func:`getattr`.
 
    .. versionadded:: 0.6
+
+.. method:: Sphinx.add_search_language(cls)
+
+   Add *cls*, which must be a subclass of :class:`sphinx.search.SearchLanguage`,
+   as a support language for building the HTML full-text search index.  The
+   class must have a *lang* attribute that indicates the language it should be
+   used for.  See :confval:`html_search_language`.
+
+   .. versionadded:: 1.1
 
 .. method:: Sphinx.connect(event, callback)
 

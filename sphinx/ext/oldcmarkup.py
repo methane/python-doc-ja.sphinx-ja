@@ -5,7 +5,7 @@
 
     Extension for compatibility with old C markup (directives and roles).
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -17,6 +17,7 @@ _warned_oldcmarkup = False
 WARNING_MSG = 'using old C markup; please migrate to new-style markup ' \
               '(e.g. c:function instead of cfunction), see ' \
               'http://sphinx.pocoo.org/domains.html'
+
 
 class OldCDirective(Directive):
     has_content = True
@@ -31,7 +32,6 @@ class OldCDirective(Directive):
     def run(self):
         env = self.state.document.settings.env
         if not env.app._oldcmarkup_warned:
-            print 'XXXYYY'
             env.warn(env.docname, WARNING_MSG, self.lineno)
             env.app._oldcmarkup_warned = True
         newname = 'c:' + self.name[1:]

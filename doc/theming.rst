@@ -69,9 +69,9 @@ Builtin themes
 |                    |                    |
 | *traditional*      | *nature*           |
 +--------------------+--------------------+
-| |haiku|            |                    |
+| |haiku|            | |pyramid|          |
 |                    |                    |
-| *haiku*            |                    |
+| *haiku*            | *pyramid*          |
 +--------------------+--------------------+
 
 .. |default|     image:: themes/default.png
@@ -81,6 +81,7 @@ Builtin themes
 .. |traditional| image:: themes/traditional.png
 .. |nature|      image:: themes/nature.png
 .. |haiku|       image:: themes/haiku.png
+.. |pyramid|     image:: themes/pyramid.png
 
 Sphinx comes with a selection of themes to choose from.
 
@@ -119,6 +120,8 @@ These themes are:
   - **footerbgcolor** (CSS color): Background color for the footer line.
   - **footertextcolor** (CSS color): Text color for the footer line.
   - **sidebarbgcolor** (CSS color): Background color for the sidebar.
+  - **sidebarbtncolor** (CSS color): Background color for the sidebar collapse
+    button (used when *collapsiblesidebar* is true).
   - **sidebartextcolor** (CSS color): Text color for the sidebar.
   - **sidebarlinkcolor** (CSS color): Link color for the sidebar.
   - **relbarbgcolor** (CSS color): Background color for the relation bar.
@@ -142,8 +145,7 @@ These themes are:
   on the right side.  There are currently no options beyond *nosidebar*.
 
 * **scrolls** -- A more lightweight theme, based on `the Jinja documentation
-  <http://jinja.pocoo.org/2/documentation/>`_.  The following color options are
-  available:
+  <http://jinja.pocoo.org/>`_.  The following color options are available:
 
   - **headerbordercolor**
   - **subheadlinecolor**
@@ -176,6 +178,9 @@ These themes are:
 * **nature** -- A greenish theme.  There are currently no options beyond
   *nosidebar*.
 
+* **pyramid** -- A theme from the Pyramid web framework project, designed by
+  Blais Laflamme.  THere are currently no options beyond *nosidebar*.
+
 * **haiku** -- A theme without sidebar inspired by the `Haiku OS user guide
   <http://www.haiku-os.org/docs/userguide/en/contents.html>`_.  The following
   options are supported:
@@ -204,7 +209,7 @@ name), containing the following:
 * A :file:`theme.conf` file, see below.
 * HTML templates, if needed.
 * A ``static/`` directory containing any static files that will be copied to the
-  output statid directory on build.  These can be images, styles, script files.
+  output static directory on build.  These can be images, styles, script files.
 
 The :file:`theme.conf` file is in INI format [1]_ (readable by the standard
 Python :mod:`ConfigParser` module) and has the following structure:

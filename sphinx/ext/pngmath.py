@@ -5,7 +5,7 @@
 
     Render math in HTML via dvipng.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -26,6 +26,7 @@ from docutils import nodes
 from sphinx.errors import SphinxError
 from sphinx.util.png import read_png_depth, write_png_depth
 from sphinx.util.osutil import ensuredir, ENOENT
+from sphinx.util.pycompat import b
 from sphinx.ext.mathbase import setup_math as mathbase_setup, wrap_displaymath
 
 class MathExtError(SphinxError):
@@ -58,11 +59,10 @@ DOC_BODY_PREVIEW = r'''
 \end{document}
 '''
 
-depth_re = re.compile(r'\[\d+ depth=(-?\d+)\]')
+depth_re = re.compile(b(r'\[\d+ depth=(-?\d+)\]'))
 
 def render_math(self, math):
-    """
-    Render the LaTeX math expression *math* using latex and dvipng.
+    """Render the LaTeX math expression *math* using latex and dvipng.
 
     Return the filename relative to the built document and the "depth",
     that is, the distance of image bottom and baseline in pixels, if the

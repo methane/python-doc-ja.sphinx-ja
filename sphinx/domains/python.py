@@ -5,7 +5,7 @@
 
     The Python domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -33,7 +33,52 @@ py_sig_re = re.compile(
           )? $                   # and nothing more
           ''', re.VERBOSE)
 
-py_paramlist_re = re.compile(r'([\[\],])')  # split at '[', ']' and ','
+
+def _pseudo_parse_arglist(signode, arglist):
+    """"Parse" a list of arguments separated by commas.
+
+    Arguments can have "optional" annotations given by enclosing them in
+    brackets.  Currently, this will split at any comma, even if it's inside a
+    string literal (e.g. default argument value).
+    """
+    paramlist = addnodes.desc_parameterlist()
+    stack = [paramlist]
+    try:
+        for argument in arglist.split(','):
+            argument = argument.strip()
+            ends_open = ends_close = 0
+            while argument.startswith('['):
+                stack.append(addnodes.desc_optional())
+                stack[-2] += stack[-1]
+                argument = argument[1:].strip()
+            while argument.startswith(']'):
+                stack.pop()
+                argument = argument[1:].strip()
+            while argument.endswith(']'):
+                ends_close += 1
+                argument = argument[:-1].strip()
+            while argument.endswith('['):
+                ends_open += 1
+                argument = argument[:-1].strip()
+            if argument:
+                stack[-1] += addnodes.desc_parameter(argument, argument)
+            while ends_open:
+                stack.append(addnodes.desc_optional())
+                stack[-2] += stack[-1]
+                ends_open -= 1
+            while ends_close:
+                stack.pop()
+                ends_close -= 1
+        if len(stack) != 1:
+            raise IndexError
+    except IndexError:
+        # if there are too few or too many elements on the stack, just give up
+        # and treat the whole argument list as one argument, discarding the
+        # already partially populated paramlist node
+        signode += addnodes.desc_parameterlist()
+        signode[-1] += addnodes.desc_parameter(arglist, arglist)
+    else:
+        signode += paramlist
 
 
 class PyObject(ObjectDescription):
@@ -49,10 +94,12 @@ class PyObject(ObjectDescription):
         TypedField('parameter', label=l_('Parameters'),
                    names=('param', 'parameter', 'arg', 'argument',
                           'keyword', 'kwarg', 'kwparam'),
-                   typerolename='obj', typenames=('paramtype', 'type')),
+                   typerolename='obj', typenames=('paramtype', 'type'),
+                   can_collapse=True),
         TypedField('variable', label=l_('Variables'), rolename='obj',
                    names=('var', 'ivar', 'cvar'),
-                   typerolename='obj', typenames=('vartype',)),
+                   typerolename='obj', typenames=('vartype',),
+                   can_collapse=True),
         GroupedField('exceptions', label=l_('Raises'), rolename='exc',
                      names=('raises', 'raise', 'exception', 'except'),
                      can_collapse=True),
@@ -63,22 +110,21 @@ class PyObject(ObjectDescription):
     ]
 
     def get_signature_prefix(self, sig):
-        """
-        May return a prefix to put before the object name in the signature.
+        """May return a prefix to put before the object name in the
+        signature.
         """
         return ''
 
     def needs_arglist(self):
-        """
-        May return true if an empty argument list is to be generated even if
+        """May return true if an empty argument list is to be generated even if
         the document contains none.
         """
         return False
 
     def handle_signature(self, sig, signode):
-        """
-        Transform a Python signature into RST nodes.
-        Returns (fully qualified name of the thing, classname if any).
+        """Transform a Python signature into RST nodes.
+
+        Return (fully qualified name of the thing, classname if any).
 
         If inside a class, the current class name is handled intelligently:
         * it is stripped from the displayed name if present
@@ -142,34 +188,13 @@ class PyObject(ObjectDescription):
             if retann:
                 signode += addnodes.desc_returns(retann, retann)
             return fullname, name_prefix
-        signode += addnodes.desc_parameterlist()
-
-        stack = [signode[-1]]
-        for token in py_paramlist_re.split(arglist):
-            if token == '[':
-                opt = addnodes.desc_optional()
-                stack[-1] += opt
-                stack.append(opt)
-            elif token == ']':
-                try:
-                    stack.pop()
-                except IndexError:
-                    raise ValueError
-            elif not token or token == ',' or token.isspace():
-                pass
-            else:
-                token = token.strip()
-                stack[-1] += addnodes.desc_parameter(token, token)
-        if len(stack) != 1:
-            raise ValueError
+        _pseudo_parse_arglist(signode, arglist)
         if retann:
             signode += addnodes.desc_returns(retann, retann)
         return fullname, name_prefix
 
     def get_index_text(self, modname, name):
-        """
-        Return the text for the index entry of the object.
-        """
+        """Return the text for the index entry of the object."""
         raise NotImplementedError('must be implemented in subclasses')
 
     def add_target_and_index(self, name_cls, sig, signode):
@@ -548,9 +573,8 @@ class PythonDomain(Domain):
                 del self.data['modules'][modname]
 
     def find_obj(self, env, modname, classname, name, type, searchmode=0):
-        """
-        Find a Python object for "name", perhaps using the given module and/or
-        classname.  Returns a list of (name, object entry) tuples.
+        """Find a Python object for "name", perhaps using the given module
+        and/or classname.  Returns a list of (name, object entry) tuples.
         """
         # skip parens
         if name[-2:] == '()':

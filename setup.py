@@ -63,6 +63,9 @@ if sys.version_info < (2, 5):
     else:
         del requires[-1]
 
+    # The uuid module is new in the stdlib in 2.5
+    requires.append('uuid>=1.30')
+
 
 # Provide a "compile_catalog" command that also creates the translated
 # JavaScript files if Babel is available.
@@ -190,6 +193,7 @@ setup(
         'console_scripts': [
             'sphinx-build = sphinx:main',
             'sphinx-quickstart = sphinx.quickstart:main',
+            'sphinx-apidoc = sphinx.apidoc:main',
             'sphinx-autogen = sphinx.ext.autosummary.generate:main',
         ],
         'distutils.commands': [

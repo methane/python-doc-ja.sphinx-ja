@@ -5,7 +5,7 @@
 
     The reStructuredText domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -59,9 +59,10 @@ class ReSTMarkup(ObjectDescription):
 
 
 def parse_directive(d):
-    """
-    Parses a directive signature. Returns (directive, arguments) string tuple.
-    if no arguments are given, returns (directive, '').
+    """Parse a directive signature.
+
+    Returns (directive, arguments) string tuple.  If no arguments are given,
+    returns (directive, '').
     """
     dir = d.strip()
     if not dir.startswith('.'):

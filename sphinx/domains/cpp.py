@@ -5,7 +5,7 @@
 
     The C++ language domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -21,10 +21,9 @@ from sphinx.domains import Domain, ObjType
 from sphinx.directives import ObjectDescription
 from sphinx.util.nodes import make_refnode
 from sphinx.util.compat import Directive
-from sphinx.util.docfields import TypedField
 
 
-_identifier_re = re.compile(r'\b(~?[a-zA-Z_][a-zA-Z0-9_]*)\b')
+_identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
 _whitespace_re = re.compile(r'\s+(?u)')
 _string_re = re.compile(r"[LuU8]?('([^'\\]*(?:\\.[^'\\]*)*)'"
                         r'|"([^"\\]*(?:\\.[^"\\]*)*)")', re.S)
@@ -135,16 +134,18 @@ class DefExpr(object):
     __hash__ = None
 
     def clone(self):
-        """Close a definition expression node"""
+        """Clone a definition expression node."""
         return deepcopy(self)
 
     def get_id(self):
-        """Returns the id for the node"""
+        """Return the id for the node."""
         return u''
 
     def get_name(self):
-        """Returns the name.  Returns either `None` or a node with
-        a name you might call :meth:`split_owner` on.
+        """Return the name.
+
+        Returns either `None` or a node with a name you might call
+        :meth:`split_owner` on.
         """
         return None
 
@@ -152,12 +153,12 @@ class DefExpr(object):
         """Nodes returned by :meth:`get_name` can split off their
         owning parent.  This function returns the owner and the
         name as a tuple of two items.  If a node does not support
-        it, :exc:`NotImplementedError` is raised.
+        it, it returns None as owner and self as name.
         """
-        raise NotImplementedError()
+        return None, self
 
     def prefix(self, prefix):
-        """Prefixes a name node (a node returned by :meth:`get_name`)."""
+        """Prefix a name node (a node returned by :meth:`get_name`)."""
         raise NotImplementedError()
 
     def __str__(self):
@@ -171,9 +172,6 @@ class PrimaryDefExpr(DefExpr):
 
     def get_name(self):
         return self
-
-    def split_owner(self):
-        return None, self
 
     def prefix(self, prefix):
         if isinstance(prefix, PathDefExpr):
@@ -325,9 +323,8 @@ class ArgumentDefExpr(DefExpr):
         return self.type.get_id()
 
     def __unicode__(self):
-        return (self.type is not None and u'%s %s' % (self.type, self.name)
-                or unicode(self.name)) + (self.default is not None and
-                                          u'=%s' % self.default or u'')
+        return (u'%s %s' % (self.type or u'', self.name or u'')).strip() + \
+               (self.default is not None and u'=%s' % self.default or u'')
 
 
 class NamedDefExpr(DefExpr):
@@ -447,9 +444,9 @@ class DefinitionParser(object):
         'mutable':      None,
         'const':        None,
         'typename':     None,
-        'unsigned':     set(('char', 'int', 'long')),
-        'signed':       set(('char', 'int', 'long')),
-        'short':        set(('int', 'short')),
+        'unsigned':     set(('char', 'short', 'int', 'long')),
+        'signed':       set(('char', 'short', 'int', 'long')),
+        'short':        set(('int',)),
         'long':         set(('int', 'long', 'double'))
     }
 
@@ -696,14 +693,13 @@ class DefinitionParser(object):
                     self.fail('expected comma between arguments')
                 self.skip_ws()
 
-            argname = self._parse_type()
-            argtype = default = None
+            argtype = self._parse_type()
+            argname = default = None
             self.skip_ws()
             if self.skip_string('='):
                 self.pos += 1
                 default = self._parse_default_expr()
             elif self.current_char not in ',)':
-                argtype = argname
                 argname = self._parse_name()
                 self.skip_ws()
                 if self.skip_string('='):
@@ -984,8 +980,9 @@ class CPPFunctionObject(CPPObject):
 
 
 class CPPCurrentNamespace(Directive):
-    """This directive is just to tell Sphinx that we're documenting
-    stuff in namespace foo.
+    """
+    This directive is just to tell Sphinx that we're documenting stuff in
+    namespace foo.
     """
 
     has_content = False

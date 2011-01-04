@@ -5,7 +5,7 @@
 
     Docutils node-related utility functions for Sphinx.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -14,6 +14,7 @@ import re
 from docutils import nodes
 
 from sphinx import addnodes
+from sphinx.locale import pairindextypes
 from sphinx.util.pycompat import class_types
 
 
@@ -22,7 +23,28 @@ explicit_title_re = re.compile(r'^(.+?)\s*(?<!\x00)<(.*?)>$', re.DOTALL)
 caption_ref_re = explicit_title_re  # b/w compat alias
 
 
+def extract_messages(doctree):
+    """Extract translatable messages from a document tree."""
+    for node in doctree.traverse(nodes.TextElement):
+        if isinstance(node, (nodes.Invisible, nodes.Inline)):
+            continue
+        # <field_name>orphan</field_name>
+        # XXX ignore all metadata (== docinfo)
+        if isinstance(node, nodes.field_name) and node.children[0] == 'orphan':
+            continue
+        msg = node.rawsource.replace('\n', ' ').strip()
+        # XXX nodes rendering empty are likely a bug in sphinx.addnodes
+        if msg:
+            yield node, msg
+
+
 def nested_parse_with_titles(state, content, node):
+    """Version of state.nested_parse() that allows titles and does not require
+    titles to have the same decoration as the calling document.
+
+    This is useful when the parsed content comes from a completely different
+    context, such as docstrings.
+    """
     # hack around title style bookkeeping
     surrounding_title_styles = state.memo.title_styles
     surrounding_section_level = state.memo.section_level
@@ -49,6 +71,37 @@ def split_explicit_title(text):
     if match:
         return True, match.group(1), match.group(2)
     return False, text, text
+
+
+indextypes = [
+    'single', 'pair', 'double', 'triple',
+]
+
+def process_index_entry(entry, targetid):
+    indexentries = []
+    entry = entry.strip()
+    for type in pairindextypes:
+        if entry.startswith(type+':'):
+            value = entry[len(type)+1:].strip()
+            value = pairindextypes[type] + '; ' + value
+            indexentries.append(('pair', value, targetid, value))
+            break
+    else:
+        for type in indextypes:
+            if entry.startswith(type+':'):
+                value = entry[len(type)+1:].strip()
+                if type == 'double':
+                    type = 'pair'
+                indexentries.append((type, value, targetid, value))
+                break
+        # shorthand notation for single entries
+        else:
+            for value in entry.split(','):
+                value = value.strip()
+                if not value:
+                    continue
+                indexentries.append(('single', value, targetid, value))
+    return indexentries
 
 
 def inline_all_toctrees(builder, docnameset, docname, tree, colorfunc):

@@ -5,7 +5,7 @@
 
     Highlight code blocks using Pygments.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -30,34 +30,14 @@ try:
     from pygments.lexers import get_lexer_by_name, guess_lexer
     from pygments.formatters import HtmlFormatter, LatexFormatter
     from pygments.filters import ErrorToken
-    from pygments.style import Style
     from pygments.styles import get_style_by_name
-    from pygments.styles.friendly import FriendlyStyle
-    from pygments.token import Generic, Comment, Number
     from pygments.util import ClassNotFound
+    from sphinx.pygments_styles import SphinxStyle, NoneStyle
 except ImportError:
     pygments = None
     lexers = None
     HtmlFormatter = LatexFormatter = None
 else:
-    class SphinxStyle(Style):
-        """
-        Like friendly, but a bit darker to enhance contrast on the green
-        background.
-        """
-
-        background_color = '#eeffcc'
-        default_style = ''
-
-        styles = FriendlyStyle.styles
-        styles.update({
-            Generic.Output: '#333',
-            Comment: 'italic #408090',
-            Number: '#208050',
-        })
-
-    class NoneStyle(Style):
-        """Style without any styling."""
 
     lexers = dict(
         none = TextLexer(),
@@ -207,7 +187,7 @@ class PygmentsBridge(object):
                     lexer = lexers[lang] = get_lexer_by_name(lang)
                 except ClassNotFound:
                     if warn:
-                        warn('Pygments lexer name %s is not known' % lang)
+                        warn('Pygments lexer name %r is not known' % lang)
                         return self.unhighlighted(source)
                     else:
                         raise

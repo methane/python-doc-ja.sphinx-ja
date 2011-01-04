@@ -5,7 +5,7 @@
 
     JSON serializer implementation wrapper.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -13,7 +13,7 @@ import UserString
 
 try:
     import json
-    # json-py's json module has not JSONEncoder; this will raise AttributeError
+    # json-py's json module has no JSONEncoder; this will raise AttributeError
     # if json-py is imported instead of the built-in json module
     JSONEncoder = json.JSONEncoder
 except (ImportError, AttributeError):

@@ -5,7 +5,7 @@
 
     The Sphinx documentation toolchain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -15,7 +15,7 @@
 import sys
 from os import path
 
-__version__ = '1.1pre'
+__version__  = '1.1pre'
 __released__ = '1.1 (hg)'  # used when Sphinx builds its own docs
 
 package_dir = path.abspath(path.dirname(__file__))
@@ -37,6 +37,7 @@ if '+' in __version__ or 'pre' in __version__:
 
 
 def main(argv=sys.argv):
+    """Sphinx build "main" command-line entry."""
     if sys.version_info[:3] < (2, 4, 0):
         sys.stderr.write('Error: Sphinx requires at least '
                          'Python 2.4 to run.\n')

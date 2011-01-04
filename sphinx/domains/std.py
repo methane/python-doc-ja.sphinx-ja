@@ -5,11 +5,12 @@
 
     The standard domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import re
+import unicodedata
 
 from docutils import nodes
 from docutils.parsers.rst import directives
@@ -250,7 +251,7 @@ class Glossary(Directive):
                 li.insert(0, indexnode)
                 items.append((termtext, li))
         if 'sorted' in self.options:
-            items.sort(key=lambda x: x[0].lower())
+            items.sort(key=lambda x: unicodedata.normalize('NFD', x[0].lower()))
         new_dl.extend(item[1] for item in items)
         node.children = [new_dl]
         return [node]

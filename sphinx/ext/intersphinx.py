@@ -20,7 +20,7 @@
       also be specified individually, e.g. if the docs should be buildable
       without Internet access.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -149,6 +149,8 @@ def load_mappings(app):
     env = app.builder.env
     if not hasattr(env, 'intersphinx_cache'):
         env.intersphinx_cache = {}
+        env.intersphinx_inventory = {}
+        env.intersphinx_named_inventory = {}
     cache = env.intersphinx_cache
     update = False
     for key, value in app.config.intersphinx_mapping.iteritems():
