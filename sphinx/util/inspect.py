@@ -9,8 +9,12 @@
     :license: BSD, see LICENSE for details.
 """
 
-inspect = __import__('inspect')
 import sys
+
+# this imports the standard library inspect module without resorting to
+# relatively import this module
+inspect = __import__('inspect')
+
 
 if sys.version_info >= (2, 5):
     from functools import partial
