@@ -5,7 +5,7 @@
 
     Utility functions for Sphinx.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -114,9 +114,9 @@ class FilenameUniqDict(dict):
     def purge_doc(self, docname):
         for filename, (docs, _) in self.items():
             docs.discard(docname)
-            #if not docs:
-            #    del self[filename]
-            #    self._existing.discard(filename)
+            if not docs:
+                del self[filename]
+                self._existing.discard(filename)
 
     def __getstate__(self):
         return self._existing
@@ -164,16 +164,19 @@ def copy_static_entry(source, targetdir, builder, context={},
 
 _DEBUG_HEADER = '''\
 # Sphinx version: %s
+# Python version: %s
 # Docutils version: %s %s
 # Jinja2 version: %s
 '''
 
 def save_traceback():
     """Save the current exception's traceback in a temporary file."""
+    import platform
     exc = traceback.format_exc()
     fd, path = tempfile.mkstemp('.log', 'sphinx-err-')
     os.write(fd, (_DEBUG_HEADER %
                   (sphinx.__version__,
+                   platform.python_version(),
                    docutils.__version__, docutils.__version_details__,
                    jinja2.__version__)).encode('utf-8'))
     os.write(fd, exc.encode('utf-8'))
@@ -206,7 +209,7 @@ def get_module_source(modname):
     lfilename = filename.lower()
     if lfilename.endswith('.pyo') or lfilename.endswith('.pyc'):
         filename = filename[:-1]
-    elif not lfilename.endswith('.py'):
+    elif not (lfilename.endswith('.py') or lfilename.endswith('.pyw')):
         raise PycodeError('source is not a .py file: %r' % filename)
     if not path.isfile(filename):
         raise PycodeError('source file is not present: %r' % filename)
@@ -280,6 +283,14 @@ def rpartition(s, t):
     if i != -1:
         return s[:i], s[i+len(t):]
     return '', s
+
+
+def split_into(n, type, value):
+    """Split an index entry into a given number of parts at semicolons."""
+    parts = map(lambda x: x.strip(), value.split(';', n-1))
+    if sum(1 for part in parts if part) < n:
+        raise ValueError('invalid %s index entry %r' % (type, value))
+    return parts
 
 
 def format_exception_cut_frames(x=1):

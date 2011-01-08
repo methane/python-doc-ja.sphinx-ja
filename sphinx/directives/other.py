@@ -3,7 +3,7 @@
     sphinx.directives.other
     ~~~~~~~~~~~~~~~~~~~~~~~
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -80,8 +80,9 @@ class TocTree(Directive):
                     entries.append((title, ref))
                 elif docname not in env.found_docs:
                     ret.append(self.state.document.reporter.warning(
-                        'toctree references unknown document %r' % docname,
-                        line=self.lineno))
+                        'toctree contains reference to nonexisting '
+                        'document %r' % docname, line=self.lineno))
+                    env.note_reread()
                 else:
                     entries.append((title, docname))
                     includefiles.append(docname)
@@ -164,6 +165,7 @@ class Index(Directive):
         self.state.document.note_explicit_target(targetnode)
         indexnode = addnodes.index()
         indexnode['entries'] = ne = []
+        indexnode['inline'] = False
         for entry in arguments:
             ne.extend(process_index_entry(entry, targetid))
         return [indexnode, targetnode]
@@ -236,6 +238,7 @@ class TabularColumns(Directive):
     def run(self):
         node = addnodes.tabular_col_spec()
         node['spec'] = self.arguments[0]
+        node.line = self.lineno
         return [node]
 
 

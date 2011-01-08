@@ -8,7 +8,7 @@
     Much of this code is adapted from Dave Kuhlman's "docpy" writer from his
     docutils sandbox.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -23,6 +23,7 @@ from sphinx import addnodes
 from sphinx import highlighting
 from sphinx.errors import SphinxError
 from sphinx.locale import admonitionlabels, versionlabels, _
+from sphinx.util import split_into
 from sphinx.util.osutil import ustrftime
 from sphinx.util.pycompat import any
 from sphinx.util.texescape import tex_escape_map, tex_replace_map
@@ -102,8 +103,10 @@ class ExtBabel(Babel):
             return '\\shorthandoff{"}'
         return ''
 
-    _ISO639_TO_BABEL = Babel._ISO639_TO_BABEL.copy()
-    _ISO639_TO_BABEL['sl'] = 'slovene'
+# in latest trunk, the attribute is called Babel.language_codes and already
+# includes Slovene
+if hasattr(Babel, '_ISO639_TO_BABEL'):
+    Babel._ISO639_TO_BABEL['sl'] = 'slovene'
 
 
 class Table(object):
@@ -113,6 +116,7 @@ class Table(object):
         self.colspec = None
         self.rowcount = 0
         self.had_head = False
+        self.has_problematic = False
         self.has_verbatim = False
         self.caption = None
         self.longtable = False
@@ -191,6 +195,14 @@ class LaTeXTranslator(nodes.NodeVisitor):
             lang = babel.get_language()
             if lang:
                 self.elements['classoptions'] += ',' + babel.get_language()
+            elif builder.config.language == 'ja':
+                self.elements['classoptions'] += ',english,dvipdfm'
+                # not elements of babel, but this should be above sphinx.sty.
+                # because pTeX (Japanese TeX) cannot handle this count.
+                self.elements['babel'] += r'\newcount\pdfoutput\pdfoutput=0'
+                # to make the pdf with correct encoded hyperref bookmarks
+                self.elements['preamble'] += \
+                    r'\AtBeginDvi{\special{pdf:tounicode EUC-UCS2}}'
             else:
                 self.builder.warn('no Babel option known for language %r' %
                                   builder.config.language)
@@ -231,6 +243,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.verbatim = None
         self.in_title = 0
         self.in_production_list = 0
+        self.in_footnote = 0
+        self.in_caption = 0
         self.first_document = 1
         self.this_is_the_title = 1
         self.literal_whitespace = 0
@@ -429,10 +443,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
         elif self.this_is_the_title:
             if len(node.children) != 1 and not isinstance(node.children[0],
                                                           nodes.Text):
-                self.builder.warn(
-                    'document title is not a single Text node',
-                    '%s:%s' % (self.builder.env.doc2path(self.curfilestack[-1]),
-                               node.line or ''))
+                self.builder.warn('document title is not a single Text node',
+                                  (self.curfilestack[-1], node.line))
             if not self.elements['title']:
                 # text needs to be escaped since it is inserted into
                 # the output literally
@@ -465,8 +477,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
             self.builder.warn(
                 'encountered title node not in section, topic, table, '
                 'admonition or sidebar',
-                '%s:%s' % (self.builder.env.doc2path(self.curfilestack[-1]),
-                           node.line or ''))
+                (self.curfilestack[-1], node.line or ''))
             self.body.append('\\textbf{')
             self.context.append('}\n')
         self.in_title = 1
@@ -485,6 +496,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_desc(self, node):
         self.body.append('\n\n\\begin{fulllineitems}\n')
+        if self.table:
+            self.table.has_problematic = True
     def depart_desc(self, node):
         self.body.append('\n\\end{fulllineitems}\n\n')
 
@@ -584,9 +597,11 @@ class LaTeXTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_collected_footnote(self, node):
+        self.in_footnote += 1
         self.body.append('\\footnote{')
     def depart_collected_footnote(self, node):
         self.body.append('}')
+        self.in_footnote -= 1
 
     def visit_label(self, node):
         if isinstance(node.parent, nodes.citation):
@@ -618,14 +633,22 @@ class LaTeXTranslator(nodes.NodeVisitor):
                              u'\\capstart\\caption{%s}\n' % self.table.caption)
         if self.table.longtable:
             self.body.append('\n\\begin{longtable}')
+            endmacro = '\\end{longtable}\n\n'
         elif self.table.has_verbatim:
             self.body.append('\n\\begin{tabular}')
+            endmacro = '\\end{tabular}\n\n'
+        elif self.table.has_problematic and not self.table.colspec:
+            # if the user has given us tabularcolumns, accept them and use
+            # tabulary nevertheless
+            self.body.append('\n\\begin{tabular}')
+            endmacro = '\\end{tabular}\n\n'
         else:
             self.body.append('\n\\begin{tabulary}{\\linewidth}')
+            endmacro = '\\end{tabulary}\n\n'
         if self.table.colspec:
             self.body.append(self.table.colspec)
         else:
-            if self.table.has_verbatim:
+            if self.table.has_problematic:
                 colwidth = 0.95 / self.table.colcount
                 colspec = ('p{%.3f\\linewidth}|' % colwidth) * \
                           self.table.colcount
@@ -658,12 +681,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
         else:
             self.body.append('\\hline\n')
         self.body.extend(self.tablebody)
-        if self.table.longtable:
-            self.body.append('\\end{longtable}\n\n')
-        elif self.table.has_verbatim:
-            self.body.append('\\end{tabular}\n\n')
-        else:
-            self.body.append('\\end{tabulary}\n\n')
+        self.body.append(endmacro)
         if not self.table.longtable and self.table.caption is not None:
             self.body.append('\\end{threeparttable}\n\n')
         self.table = None
@@ -728,6 +746,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
     def visit_bullet_list(self, node):
         if not self.compact_list:
             self.body.append('\\begin{itemize}\n' )
+        if self.table:
+            self.table.has_problematic = True
     def depart_bullet_list(self, node):
         if not self.compact_list:
             self.body.append('\\end{itemize}\n' )
@@ -736,6 +756,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.body.append('\\begin{enumerate}\n' )
         if 'start' in node:
             self.body.append('\\setcounter{enumi}{%d}\n' % (node['start'] - 1))
+        if self.table:
+            self.table.has_problematic = True
     def depart_enumerated_list(self, node):
         self.body.append('\\end{enumerate}\n' )
 
@@ -748,6 +770,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_definition_list(self, node):
         self.body.append('\\begin{description}\n')
+        if self.table:
+            self.table.has_problematic = True
     def depart_definition_list(self, node):
         self.body.append('\\end{description}\n')
 
@@ -765,6 +789,10 @@ class LaTeXTranslator(nodes.NodeVisitor):
     def depart_term(self, node):
         self.body.append(self.context.pop())
 
+    def visit_termsep(self, node):
+        self.body.append(', ')
+        raise nodes.SkipNode
+
     def visit_classifier(self, node):
         self.body.append('{[}')
     def depart_classifier(self, node):
@@ -777,6 +805,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_field_list(self, node):
         self.body.append('\\begin{quote}\\begin{description}\n')
+        if self.table:
+            self.table.has_problematic = True
     def depart_field_list(self, node):
         self.body.append('\\end{description}\\end{quote}\n')
 
@@ -798,6 +828,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_centered(self, node):
         self.body.append('\n\\begin{center}')
+        if self.table:
+            self.table.has_problematic = True
     def depart_centered(self, node):
         self.body.append('\n\\end{center}')
 
@@ -807,6 +839,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.compact_list += 1
         self.body.append('\\begin{itemize}\\setlength{\\itemsep}{0pt}'
                          '\\setlength{\\parskip}{0pt}\n')
+        if self.table:
+            self.table.has_problematic = True
     def depart_hlist(self, node):
         self.compact_list -= 1
         self.body.append('\\end{itemize}\n')
@@ -921,9 +955,11 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.body.append(self.context.pop())
 
     def visit_caption(self, node):
+        self.in_caption += 1
         self.body.append('\\caption{')
     def depart_caption(self, node):
         self.body.append('}')
+        self.in_caption -= 1
 
     def visit_legend(self, node):
         self.body.append('{\\small ')
@@ -1028,27 +1064,36 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.body.append('\n\\end{flushright}\n')
 
     def visit_index(self, node, scre=re.compile(r';\s*')):
+        if not node.get('inline', True):
+            self.body.append('\n')
         entries = node['entries']
-        for type, string, tid, _ in entries:
-            if type == 'single':
-                self.body.append(r'\index{%s}' %
-                                 scre.sub('!', self.encode(string)))
-            elif type == 'pair':
-                parts = tuple(self.encode(x.strip())
-                              for x in string.split(';', 1))
-                try:
-                    self.body.append(r'\indexii{%s}{%s}' % parts)
-                except TypeError:
-                    self.builder.warn('invalid pair index entry %r' % string)
-            elif type == 'triple':
-                parts = tuple(self.encode(x.strip())
-                              for x in string.split(';', 2))
-                try:
-                    self.body.append(r'\indexiii{%s}{%s}{%s}' % parts)
-                except TypeError:
-                    self.builder.warn('invalid triple index entry %r' % string)
-            else:
-                self.builder.warn('unknown index entry type %s found' % type)
+        for type, string, tid, ismain in entries:
+            m = ''
+            if ismain:
+                m = '|textbf'
+            try:
+                if type == 'single':
+                    p = scre.sub('!', self.encode(string))
+                    self.body.append(r'\index{%s%s}' % (p, m))
+                elif type == 'pair':
+                    p1, p2 = map(self.encode, split_into(2, 'pair', string))
+                    self.body.append(r'\index{%s!%s%s}\index{%s!%s%s}' %
+                                     (p1, p2, m,  p2, p1, m))
+                elif type == 'triple':
+                    p1, p2, p3 = map(self.encode, split_into(3, 'triple', string))
+                    self.body.append(
+                        r'\index{%s!%s %s%s}\index{%s!%s, %s%s}\index{%s!%s %s%s}' %
+                        (p1, p2, p3, m,  p2, p3, p1, m,  p3, p1, p2, m))
+                elif type == 'see':
+                    p1, p2 = map(self.encode, split_into(2, 'see', string))
+                    self.body.append(r'\index{%s|see{%s}}' % (p1, p2))
+                elif type == 'seealso':
+                    p1, p2 = map(self.encode, split_into(2, 'seealso', string))
+                    self.body.append(r'\index{%s|see{%s}}' % (p1, p2))
+                else:
+                    self.builder.warn('unknown index entry type %s found' % type)
+            except ValueError, err:
+                self.builder.warn(str(err))
         raise nodes.SkipNode
 
     def visit_raw(self, node):
@@ -1066,11 +1111,17 @@ class LaTeXTranslator(nodes.NodeVisitor):
                  uri.startswith('https:') or uri.startswith('ftp:'):
             self.body.append('\\href{%s}{' % self.encode_uri(uri))
             # if configured, put the URL after the link
-            if self.builder.config.latex_show_urls and \
-                   node.astext() != uri:
+            show_urls = self.builder.config.latex_show_urls
+            if node.astext() != uri and show_urls and show_urls != 'no':
                 if uri.startswith('mailto:'):
                     uri = uri[7:]
-                self.context.append('} (%s)' % self.encode_uri(uri))
+                if show_urls == 'footnote' and not \
+                   (self.in_footnote or self.in_caption):
+                    # obviously, footnotes in footnotes are not going to work
+                    self.context.append(
+                        r'}\footnote{%s}' % self.encode_uri(uri))
+                else:  # all other true values (b/w compat)
+                    self.context.append('} (%s)' % self.encode_uri(uri))
             else:
                 self.context.append('}')
         elif uri.startswith('#'):
@@ -1107,10 +1158,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 self.body.append('\\grammartoken{')
             self.context.append('}')
         else:
-            self.builder.warn(
-                'unusable reference target found: %s' % uri,
-                '%s:%s' % (self.builder.env.doc2path(self.curfilestack[-1]),
-                           node.line or ''))
+            self.builder.warn('unusable reference target found: %s' % uri,
+                              (self.curfilestack[-1], node.line))
             self.context.append('')
     def depart_reference(self, node):
         self.body.append(self.context.pop())
@@ -1198,6 +1247,10 @@ class LaTeXTranslator(nodes.NodeVisitor):
         if used:
             self.body.append('\\footnotemark[%s]' % num)
         else:
+            if self.in_caption:
+                raise UnsupportedError('%s:%s: footnotes in float captions '
+                                       'are not supported by LaTeX' %
+                                       (self.curfilestack[-1], node.line))
             footnode.walkabout(self)
             self.footnotestack[-1][num][1] = True
         raise nodes.SkipChildren
@@ -1215,13 +1268,17 @@ class LaTeXTranslator(nodes.NodeVisitor):
             lang = node['language']
         if 'linenos' in node:
             linenos = node['linenos']
-        hlcode = self.highlighter.highlight_block(code, lang, linenos)
+        def warner(msg):
+            self.builder.warn(msg, (self.curfilestack[-1], node.line))
+        hlcode = self.highlighter.highlight_block(code, lang, linenos,
+                                                  warn=warner)
         # workaround for Unicode issue
         hlcode = hlcode.replace(u'€', u'@texteuro[]')
         # must use original Verbatim environment and "tabular" environment
         if self.table:
             hlcode = hlcode.replace('\\begin{Verbatim}',
                                     '\\begin{OriginalVerbatim}')
+            self.table.has_problematic = True
             self.table.has_verbatim = True
         # get consistent trailer
         hlcode = hlcode.rstrip()[:-14] # strip \end{Verbatim}
@@ -1232,31 +1289,21 @@ class LaTeXTranslator(nodes.NodeVisitor):
     visit_doctest_block = visit_literal_block
     depart_doctest_block = depart_literal_block
 
-    def visit_line_block(self, node):
-        """line-block:
-        * whitespace (including linebreaks) is significant
-        * inline markup is supported.
-        * serif typeface
-        """
-        self.body.append('\n{\\raggedright{}')
-        self.literal_whitespace += 1
-    def depart_line_block(self, node):
-        self.literal_whitespace -= 1
-        # remove the last \\
-        del self.body[-1]
-        self.body.append('}\n')
-
     def visit_line(self, node):
-        self._line_start = len(self.body)
+        self.body.append('\item[] ')
     def depart_line(self, node):
-        if self._line_start == len(self.body):
-            # no output in this line -- add a nonbreaking space, else the
-            # \\ command will give an error
-            self.body.append('~')
-        if self.table is not None:
-            self.body.append('\\newline\n')
+        self.body.append('\n')
+
+    def visit_line_block(self, node):
+        if isinstance(node.parent, nodes.line_block):
+            self.body.append('\\item[]\n'
+                             '\\begin{DUlineblock}{\\DUlineblockindent}\n')
         else:
-            self.body.append('\\\\\n')
+            self.body.append('\n\\begin{DUlineblock}{0em}\n')
+        if self.table:
+            self.table.has_problematic = True
+    def depart_line_block(self, node):
+        self.body.append('\\end{DUlineblock}\n')
 
     def visit_block_quote(self, node):
         # If the block quote contains a single object and that object
@@ -1270,6 +1317,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 done = 1
         if not done:
             self.body.append('\\begin{quote}\n')
+            if self.table:
+                self.table.has_problematic = True
     def depart_block_quote(self, node):
         done = 0
         if len(node.children) == 1:
@@ -1306,6 +1355,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_option_list(self, node):
         self.body.append('\\begin{optionlist}{3cm}\n')
+        if self.table:
+            self.table.has_problematic = True
     def depart_option_list(self, node):
         self.body.append('\\end{optionlist}\n')
 

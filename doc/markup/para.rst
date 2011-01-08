@@ -52,7 +52,7 @@ units as well as normal text:
    Similar to :rst:dir:`versionadded`, but describes when and what changed in
    the named feature in some way (new parameters, changed side effects, etc.).
 
-.. rst:directive:: .. deprecated:: vesion
+.. rst:directive:: .. deprecated:: version
 
    Similar to :rst:dir:`versionchanged`, but describes when the feature was
    deprecated.  An explanation can also be given, for example to inform the
@@ -153,9 +153,9 @@ Glossary
 
 .. rst:directive:: .. glossary::
 
-   This directive must contain a reST definition list with terms and
-   definitions.  The definitions will then be referencable with the :rst:role:`term`
-   role.  Example::
+   This directive must contain a reST definition-list-like markup with terms and
+   definitions.  The definitions will then be referencable with the
+   :rst:role:`term` role.  Example::
 
       .. glossary::
 
@@ -169,9 +169,24 @@ Glossary
             The directory which, including its subdirectories, contains all
             source files for one Sphinx project.
 
+   In contrast to regular definition lists, *multiple* terms per entry are
+   allowed, and inline markup is allowed in terms.  You can link to all of the
+   terms.  For example::
+
+      .. glossary::
+
+         term 1
+         term 2
+            Definition of both terms.
+
+   (When the glossary is sorted, the first term determines the sort order.)
+
    .. versionadded:: 0.6
       You can now give the glossary directive a ``:sorted:`` flag that will
       automatically sort the entries alphabetically.
+
+   .. versionchanged:: 1.1
+      Now supports multiple terms and inline markup in terms.
 
 
 Grammar production displays

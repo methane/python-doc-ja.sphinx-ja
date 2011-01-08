@@ -7,7 +7,7 @@
 
     Gracefully adapted from the TextPress system by Armin.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -40,6 +40,7 @@ from sphinx.util.console import bold
 # List of all known core events. Maps name to arguments description.
 events = {
     'builder-inited': '',
+    'env-get-outdated': 'env, added, changed, removed',
     'env-purge-doc': 'env, docname',
     'source-read': 'docname, source text',
     'doctree-read': 'the doctree before being pickled',
@@ -209,6 +210,12 @@ class Sphinx(object):
         self.builder.cleanup()
 
     def warn(self, message, location=None, prefix='WARNING: '):
+        if isinstance(location, tuple):
+            docname, lineno = location
+            if docname:
+                location = '%s:%s' % (self.env.doc2path(docname), lineno or '')
+            else:
+                location = None
         warntext = location and '%s: %s%s\n' % (location, prefix, message) or \
                    '%s%s\n' % (prefix, message)
         if self.warningiserror:
@@ -358,6 +365,9 @@ class Sphinx(object):
             elif key == 'man':
                 from sphinx.writers.manpage import ManualPageTranslator \
                     as translator
+            elif key == 'texinfo':
+                from sphinx.writers.texinfo import TexinfoTranslator \
+                    as translator
             else:
                 # ignore invalid keys for compatibility
                 continue
@@ -422,13 +432,15 @@ class Sphinx(object):
         setattr(self.domains[domain], 'get_%s_index' % name, func)
 
     def add_object_type(self, directivename, rolename, indextemplate='',
-                        parse_node=None, ref_nodeclass=None, objname=''):
+                        parse_node=None, ref_nodeclass=None, objname='',
+                        doc_field_types=[]):
         StandardDomain.object_types[directivename] = \
             ObjType(objname or directivename, rolename)
         # create a subclass of GenericObject as the new directive
         new_directive = type(directivename, (GenericObject, object),
                              {'indextemplate': indextemplate,
-                              'parse_node': staticmethod(parse_node)})
+                              'parse_node': staticmethod(parse_node),
+                              'doc_field_types': doc_field_types})
         StandardDomain.directives[directivename] = new_directive
         # XXX support more options?
         StandardDomain.roles[rolename] = XRefRole(innernodeclass=ref_nodeclass)
@@ -477,6 +489,11 @@ class Sphinx(object):
     def add_autodoc_attrgetter(self, type, getter):
         from sphinx.ext import autodoc
         autodoc.AutoDirective._special_attrgetters[type] = getter
+
+    def add_search_language(self, cls):
+        from sphinx.search import languages, SearchLanguage
+        assert isinstance(cls, SearchLanguage)
+        languages[cls.lang] = cls
 
 
 class TemplateBridge(object):

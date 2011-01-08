@@ -98,7 +98,7 @@ General configuration
    Example patterns:
 
    - ``'library/xml.rst'`` -- ignores the ``library/xml.rst`` file (replaces
-     entry in :confval:`unused_docs`
+     entry in :confval:`unused_docs`)
    - ``'library/xml'`` -- ignores the ``library/xml`` directory (replaces entry
      in :confval:`exclude_trees`)
    - ``'library/xml*'`` -- ignores all files and directories starting with
@@ -361,6 +361,7 @@ documentation on :ref:`intl` for details.
    * ``de`` -- German
    * ``en`` -- English
    * ``es`` -- Spanish
+   * ``fa`` -- Iranian
    * ``fi`` -- Finnish
    * ``fr`` -- French
    * ``hr`` -- Croatian
@@ -498,12 +499,18 @@ that use Sphinx' HTMLWriter class.
 
 .. confval:: html_add_permalinks
 
-   If true, Sphinx will add "permalinks" for each heading and description
-   environment as paragraph signs that become visible when the mouse hovers over
-   them.  Default: ``True``.
+   Sphinx will add "permalinks" for each heading and description environment as
+   paragraph signs that become visible when the mouse hovers over them.
+
+   This value determines the text for the permalink; it defaults to ``"¶"``.
+   Set it to ``None`` or the empty string to disable permalinks.
 
    .. versionadded:: 0.6
       Previously, this was always activated.
+
+   .. versionchanged:: 1.1
+      This can now be a string to select the actual text of the link.
+      Previously, only boolean values were accepted.
 
 .. confval:: html_sidebars
 
@@ -687,6 +694,38 @@ that use Sphinx' HTMLWriter class.
 
    .. versionadded:: 1.0
 
+.. confval:: html_search_language
+
+   Language to be used for generating the HTML full-text search index.  This
+   defaults to the global language selected with :confval:`language`.  If there
+   is no support for this language, ``"en"`` is used which selects the English
+   language.
+
+   Support is present for these languages:
+
+   * ``en`` -- English
+   * ``ja`` -- Japanese
+
+   .. versionadded:: 1.1
+
+.. confval:: html_search_options
+
+   A dictionary with options for the search language support, empty by default.
+   The meaning of these options depends on the language selected.
+
+   The English support has no options.
+
+   The Japanese support has these options:
+
+   * ``type`` -- ``'mecab'`` or ``'default'`` (selects either MeCab or
+     TinySegmenter word splitter algorithm)
+   * ``dic_enc`` -- the encoding for the MeCab algorithm
+   * ``dict`` -- the dictionary to use for the MeCab algorithm
+   * ``lib`` -- the library name for finding the MeCab library via ctypes if the
+     Python binding is not installed
+
+   .. versionadded:: 1.1
+
 .. confval:: htmlhelp_basename
 
    Output file base name for HTML help builder.  Default is ``'pydoc'``.
@@ -811,6 +850,7 @@ the `Dublin Core metadata <http://dublincore.org/>`_.
    a chapter, but can be confusing because it mixes entries of differnet
    depth in one list.  The default value is ``True``.
 
+
 .. _latex-options:
 
 Options for LaTeX output
@@ -893,10 +933,18 @@ These options influence LaTeX output.
 
 .. confval:: latex_show_urls
 
-   If true, add URL addresses after links.  This is very useful for printed
-   copies of the manual.  Default is ``False``.
+   Control whether to display URL addresses.  This is very useful for printed
+   copies of the manual.  The setting can have the following values:
+
+   * ``'no'`` -- do not display URLs (default)
+   * ``'footnote'`` -- display URLs in footnotes
+   * ``'inline'`` -- display URLs inline in parentheses
 
    .. versionadded:: 1.0
+   .. versionchanged:: 1.1
+      This value is now a string; previously it was a boolean value, and a true
+      value selected the ``'inline'`` display.  For backwards compatibility,
+      ``True`` is still accepted.
 
 .. confval:: latex_elements
 
@@ -1009,6 +1057,37 @@ These options influence LaTeX output.
       Use the ``'pointsize'`` key in the :confval:`latex_elements` value.
 
 
+.. _text-options:
+
+Options for text output
+-----------------------
+
+These options influence text output.
+
+.. confval:: text_newlines
+
+   Determines which end-of-line character(s) are used in text output.
+
+   * ``'unix'``: use Unix-style line endings (``\n``)
+   * ``'windows'``: use Windows-style line endings (``\r\n``)
+   * ``'native'``: use the line ending style of the platform the documentation
+     is built on
+
+   Default: ``'unix'``.
+
+   .. versionadded:: 1.1
+
+.. confval:: text_sectionchars
+
+   A string of 7 characters that should be used for underlining sections.
+   The first character is used for first-level headings, the second for
+   second-level headings and so on.
+
+   The default is ``'*=-~"+`'``.
+
+   .. versionadded:: 1.1
+
+
 .. _man-options:
 
 Options for manual page output
@@ -1031,13 +1110,120 @@ These options influence manual page output.
      well as the name of the manual page (in the NAME section).
    * *description*: description of the manual page.  This is used in the NAME
      section.
-   * *authors*: A list of strings with authors, or a single string.  Can be
-     an empty string or list if you do not want to automatically generate
-     an AUTHORS section in the manual page.
+   * *authors*: A list of strings with authors, or a single string.  Can be an
+     empty string or list if you do not want to automatically generate an
+     AUTHORS section in the manual page.
    * *section*: The manual page section.  Used for the output file name as well
      as in the manual page header.
 
    .. versionadded:: 1.0
+
+.. confval:: man_show_urls
+
+   If true, add URL addresses after links.  Default is ``False``.
+
+   .. versionadded:: 1.1
+
+
+.. _texinfo-options:
+
+Options for Texinfo output
+--------------------------
+
+These options influence Texinfo output.
+
+.. confval:: texinfo_documents
+
+   This value determines how to group the document tree into Texinfo source
+   files.  It must be a list of tuples ``(startdocname, targetname, title,
+   author, dir_entry, description, category, toctree_only)``, where the items
+   are:
+
+   * *startdocname*: document name that is the "root" of the Texinfo file.  All
+     documents referenced by it in TOC trees will be included in the Texinfo
+     file too.  (If you want only one Texinfo file, use your
+     :confval:`master_doc` here.)
+   * *targetname*: file name (no extension) of the Texinfo file in the output
+     directory.
+   * *title*: Texinfo document title.  Can be empty to use the title of the
+     *startdoc*.
+   * *author*: Author for the Texinfo document.  Use ``\and`` to separate
+     multiple authors, as in: ``'John \and Sarah'``.
+   * *dir_entry*: The name that will appear in the top-level ``DIR`` menu file.
+   * *description*: Descriptive text to appear in the top-level ``DIR`` menu
+     file.
+   * *category*: Specifies the section which this entry will appear in the
+     top-level ``DIR`` menu file.
+   * *toctree_only*: Must be ``True`` or ``False``.  If ``True``, the *startdoc*
+     document itself is not included in the output, only the documents
+     referenced by it via TOC trees.  With this option, you can put extra stuff
+     in the master document that shows up in the HTML, but not the Texinfo
+     output.
+
+   .. versionadded:: 1.1
+
+
+.. confval:: texinfo_appendices
+
+   A list of document names to append as an appendix to all manuals.
+
+   .. versionadded:: 1.1
+
+
+.. confval:: texinfo_elements
+
+   A dictionary that contains Texinfo snippets that override those Sphinx
+   usually puts into the generated ``.texi`` files.
+
+   * Keys that you may want to override include:
+
+     ``'paragraphindent'``
+        Number of spaces to indent the first line of each paragraph, default
+        ``2``.  Specify ``0`` for no indentation.
+
+     ``'exampleindent'``
+        Number of spaces to indent the lines for examples or literal blocks,
+        default ``4``.  Specify ``0`` for no indentation.
+
+     ``'preamble'``
+        Text inserted as is near the beginning of the file.
+
+   * Keys that are set by other options and therefore should not be overridden
+     are:
+
+     ``'filename'``
+     ``'title'``
+     ``'direntry'``
+
+   .. versionadded:: 1.1
+
+
+Options for the linkcheck builder
+---------------------------------
+
+.. confval:: linkcheck_ignore
+
+   A list of regular expressions that match URIs that should not be checked
+   when doing a ``linkcheck`` build.  Example::
+
+      linkcheck_ignore = [r'http://localhost:\d+/']
+
+   .. versionadded:: 1.1
+
+.. confval:: linkcheck_timeout
+
+   A timeout value, in seconds, for the linkcheck builder.  **Only works in
+   Python 2.6 and higher.**  The default is to use Python's global socket
+   timeout.
+
+   .. versionadded:: 1.1
+
+.. confval:: linkcheck_workers
+
+   The number of worker threads to use when checking links.  Default is 5
+   threads.
+
+   .. versionadded:: 1.1
 
 
 .. rubric:: Footnotes

@@ -5,7 +5,7 @@
 
     Storage for the websupport package.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -109,14 +109,6 @@ class StorageBackend(object):
     def accept_comment(self, comment_id):
         """Called when a moderator accepts a comment. After the method is
         called the comment should be displayed to all users.
-
-        :param comment_id: The id of the comment being accepted.
-        """
-        raise NotImplementedError()
-
-    def reject_comment(self, comment_id):
-        """Called when a moderator rejects a comment. The comment should
-        then be deleted.
 
         :param comment_id: The id of the comment being accepted.
         """

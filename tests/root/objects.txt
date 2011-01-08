@@ -13,6 +13,9 @@ Testing object descriptions
 .. function:: func_with_module
    :module: foolib
 
+Referring to :func:`func with no index <func_noindex>`.
+Referring to :func:`nothing <>`.
+
 .. module:: mod
    :synopsis: Module synopsis.
    :platform: UNIX
@@ -47,6 +50,8 @@ Testing object descriptions
 
 .. class:: TimeInt
 
+   Has only one parameter (triggers special behavior...)
+
    :param moo: |test|
    :type moo: |test|
 
@@ -54,8 +59,8 @@ Testing object descriptions
 
 .. class:: Time(hour, minute, isdst)
 
-   :param hour: The year.
-   :type hour: TimeInt
+   :param year: The year.
+   :type year: TimeInt
    :param TimeInt minute: The minute.
    :param isdst: whether it's DST
    :type isdst: * some complex
@@ -66,8 +71,10 @@ Testing object descriptions
    :ivar int hour: like *hour*
    :ivar minute: like *minute*
    :vartype minute: int
+   :param hour: Some parameter
+   :type hour: DuplicateType
    :param hour: Duplicate param.  Should not lead to crashes.
-   :type hour: Duplicate type.
+   :type hour: DuplicateType
 
 
 C items
@@ -154,3 +161,14 @@ User markup
 
 
 Referencing :userdescrole:`myobj`.
+
+
+CPP domain
+==========
+
+.. cpp:class:: n::Array<T,d>
+
+   .. cpp:function:: T& operator[]( unsigned j )
+
+   .. cpp:function:: const T& operator[]( unsigned j ) const
+

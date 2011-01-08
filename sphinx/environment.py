@@ -5,7 +5,7 @@
 
     Global creation environment.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -18,6 +18,7 @@ import codecs
 import imghdr
 import string
 import posixpath
+import unicodedata
 import cPickle as pickle
 from os import path
 from glob import glob
@@ -36,7 +37,7 @@ from docutils.transforms import Transform
 from docutils.transforms.parts import ContentsFilter
 
 from sphinx import addnodes
-from sphinx.util import url_re, get_matching_docs, docname_join, \
+from sphinx.util import url_re, get_matching_docs, docname_join, split_into, \
      FilenameUniqDict
 from sphinx.util.nodes import clean_astext, make_refnode, extract_messages
 from sphinx.util.osutil import movefile, SEP, ustrftime
@@ -44,6 +45,7 @@ from sphinx.util.matching import compile_matchers
 from sphinx.util.pycompat import all, class_types
 from sphinx.errors import SphinxError, ExtensionError
 from sphinx.locale import _, init as init_locale
+from sphinx.versioning import add_uids, merge_doctrees
 
 fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
 
@@ -66,7 +68,7 @@ default_settings = {
 
 # This is increased every time an environment attribute is added
 # or changed to properly invalidate pickle files.
-ENV_VERSION = 38
+ENV_VERSION = 39
 
 
 default_substitutions = set([
@@ -201,15 +203,13 @@ class Locale(Transform):
         # fetch translations
         dirs = [path.join(env.srcdir, x)
                 for x in env.config.locale_dirs]
-        catalog, empty = init_locale(dirs, env.config.language, section)
-        if not empty:
+        catalog, has_catalog = init_locale(dirs, env.config.language, section)
+        if not has_catalog:
             return
 
         parser = RSTParser()
 
         for node, msg in extract_messages(self.document):
-            # XXX ctx not used
-            #ctx = node.parent
             patch = new_document(source, settings)
             msgstr = catalog.gettext(msg)
             # XXX add marker to untranslated parts
@@ -217,7 +217,9 @@ class Locale(Transform):
                 continue
             parser.parse(msgstr, patch)
             patch = patch[0]
-            assert isinstance(patch, nodes.paragraph)
+            # XXX doctest and other block markup
+            if not isinstance(patch, nodes.paragraph):
+                continue # skip for now
             for child in patch.children: # update leaves
                 child.parent = node
             node.children = patch.children
@@ -335,6 +337,8 @@ class BuildEnvironment:
                                     # contains all built docnames
         self.dependencies = {}      # docname -> set of dependent file
                                     # names, relative to documentation root
+        self.reread_always = set()  # docnames to re-read unconditionally on
+                                    # next build
 
         # File metadata
         self.metadata = {}          # docname -> dict of metadata items
@@ -377,17 +381,14 @@ class BuildEnvironment:
         self.settings['warning_stream'] = WarningStream(func)
 
     def warn(self, docname, msg, lineno=None):
-        if docname:
-            if lineno is None:
-                lineno = ''
-            self._warnfunc(msg, '%s:%s' % (self.doc2path(docname), lineno))
-        else:
-            self._warnfunc(msg)
+        # strange argument order is due to backwards compatibility
+        self._warnfunc(msg, (docname, lineno))
 
     def clear_doc(self, docname):
         """Remove all traces of a source file in the inventory."""
         if docname in self.all_docs:
             self.all_docs.pop(docname, None)
+            self.reread_always.discard(docname)
             self.metadata.pop(docname, None)
             self.dependencies.pop(docname, None)
             self.titles.pop(docname, None)
@@ -489,6 +490,10 @@ class BuildEnvironment:
                                                  '.doctree')):
                     changed.add(docname)
                     continue
+                # check the "reread always" list
+                if docname in self.reread_always:
+                    changed.add(docname)
+                    continue
                 # check the mtime of the document
                 mtime = self.all_docs[docname]
                 newmtime = path.getmtime(self.doc2path(docname))
@@ -551,10 +556,15 @@ class BuildEnvironment:
 
         added, changed, removed = self.get_outdated_files(config_changed)
 
+        # allow user intervention as well
+        for docs in app.emit('env-get-outdated', self, added, changed, removed):
+            changed.update(set(docs) & self.found_docs)
+
         # if files were added or removed, all documents with globbed toctrees
         # must be reread
         if added or removed:
-            changed.update(self.glob_toctrees)
+            # ... but not those that already were removed
+            changed.update(self.glob_toctrees & self.found_docs)
 
         msg += '%s added, %s changed, %s removed' % (len(added), len(changed),
                                                      len(removed))
@@ -569,8 +579,7 @@ class BuildEnvironment:
                 self.clear_doc(docname)
 
             # read all new and changed files
-            to_read = added | changed
-            for docname in sorted(to_read):
+            for docname in sorted(added | changed):
                 yield docname
                 self.read_doc(docname, app=app)
 
@@ -687,6 +696,11 @@ class BuildEnvironment:
         codecs.register_error('sphinx', self.warn_and_replace)
 
         class SphinxSourceClass(FileInput):
+            def __init__(self_, *args, **kwds):
+                # don't call sys.exit() on IOErrors
+                kwds['handle_io_errors'] = False
+                FileInput.__init__(self_, *args, **kwds)
+
             def decode(self_, data):
                 if isinstance(data, unicode):
                     return data
@@ -739,6 +753,26 @@ class BuildEnvironment:
 
         # store time of build, for outdated files detection
         self.all_docs[docname] = time.time()
+
+        # get old doctree
+        old_doctree_path = self.doc2path(docname, self.doctreedir, '.doctree')
+        try:
+            f = open(old_doctree_path, 'rb')
+            try:
+                old_doctree = pickle.load(f)
+            finally:
+                f.close()
+            old_doctree.settings.env = self
+            old_doctree.reporter = Reporter(self.doc2path(docname), 2, 5,
+                                            stream=WarningStream(self._warnfunc))
+        except EnvironmentError:
+            old_doctree = None
+
+        # add uids for versioning
+        if old_doctree is None:
+            list(add_uids(doctree, nodes.TextElement))
+        else:
+            list(merge_doctrees(old_doctree, doctree, nodes.TextElement))
 
         # make it picklable
         doctree.reporter = None
@@ -794,6 +828,9 @@ class BuildEnvironment:
 
     def note_dependency(self, filename):
         self.dependencies.setdefault(self.docname, set()).add(filename)
+
+    def note_reread(self):
+        self.reread_always.add(self.docname)
 
     def note_versionchange(self, type, version, node, lineno):
         self.versionchanges.setdefault(version, []).append(
@@ -1280,11 +1317,12 @@ class BuildEnvironment:
                         self.warn(docname,
                                   'toctree contains reference to document '
                                   '%r that doesn\'t have a title: no link '
-                                  'will be generated' % ref)
+                                  'will be generated' % ref, toctreenode.line)
                 except KeyError:
                     # this is raised if the included file does not exist
                     self.warn(docname, 'toctree contains reference to '
-                              'nonexisting document %r' % ref)
+                              'nonexisting document %r' % ref,
+                              toctreenode.line)
                 else:
                     # if titles_only is given, only keep the main title and
                     # sub-toctrees
@@ -1413,7 +1451,9 @@ class BuildEnvironment:
                 if ret:
                     node.replace_self(node.children)
                 else:
-                    node.replace_self([])
+                    # replacing by [] would result in an "Losing ids" exception
+                    # if there is a target node before the only node
+                    node.replace_self(nodes.comment())
 
         # allow custom references to be resolved
         builder.app.emit('doctree-resolved', doctree, fromdocname)
@@ -1477,99 +1517,95 @@ class BuildEnvironment:
 
         return rewrite_needed
 
-    def create_index(self, builder, _fixre=re.compile(r'(.*) ([(][^()]*[)])')):
+    def create_index(self, builder, group_entries=True,
+                     _fixre=re.compile(r'(.*) ([(][^()]*[)])')):
         """Create the real index from the collected index entries."""
         new = {}
 
-        def add_entry(word, subword, dic=new):
+        def add_entry(word, subword, link=True, dic=new):
             entry = dic.get(word)
             if not entry:
                 dic[word] = entry = [[], {}]
             if subword:
-                add_entry(subword, '', dic=entry[1])
-            else:
+                add_entry(subword, '', link=link, dic=entry[1])
+            elif link:
                 try:
-                    entry[0].append(builder.get_relative_uri('genindex', fn)
-                                    + '#' + tid)
+                    uri = builder.get_relative_uri('genindex', fn) + '#' + tid
                 except NoUri:
                     pass
+                else:
+                    entry[0].append((main, uri))
 
         for fn, entries in self.indexentries.iteritems():
             # new entry types must be listed in directives/other.py!
-            for type, value, tid, alias in entries:
-                if type == 'single':
-                    try:
-                        entry, subentry = value.split(';', 1)
-                    except ValueError:
-                        entry, subentry = value, ''
-                    if not entry:
-                        self.warn(fn, 'invalid index entry %r' % value)
-                        continue
-                    add_entry(entry.strip(), subentry.strip())
-                elif type == 'pair':
-                    try:
-                        first, second = map(lambda x: x.strip(),
-                                            value.split(';', 1))
-                        if not first or not second:
-                            raise ValueError
-                    except ValueError:
-                        self.warn(fn, 'invalid pair index entry %r' % value)
-                        continue
-                    add_entry(first, second)
-                    add_entry(second, first)
-                elif type == 'triple':
-                    try:
-                        first, second, third = map(lambda x: x.strip(),
-                                                   value.split(';', 2))
-                        if not first or not second or not third:
-                            raise ValueError
-                    except ValueError:
-                        self.warn(fn, 'invalid triple index entry %r' % value)
-                        continue
-                    add_entry(first, second+' '+third)
-                    add_entry(second, third+', '+first)
-                    add_entry(third, first+' '+second)
-                else:
-                    self.warn(fn, 'unknown index entry type %r' % type)
+            for type, value, tid, main in entries:
+                try:
+                    if type == 'single':
+                        try:
+                            entry, subentry = split_into(2, 'single', value)
+                        except ValueError:
+                            entry, = split_into(1, 'single', value)
+                            subentry = ''
+                        add_entry(entry, subentry)
+                    elif type == 'pair':
+                        first, second = split_into(2, 'pair', value)
+                        add_entry(first, second)
+                        add_entry(second, first)
+                    elif type == 'triple':
+                        first, second, third = split_into(3, 'triple', value)
+                        add_entry(first, second+' '+third)
+                        add_entry(second, third+', '+first)
+                        add_entry(third, first+' '+second)
+                    elif type == 'see':
+                        first, second = split_into(2, 'see', value)
+                        add_entry(first, _('see %s') % second, link=False)
+                    elif type == 'seealso':
+                        first, second = split_into(2, 'see', value)
+                        add_entry(first, _('see also %s') % second, link=False)
+                    else:
+                        self.warn(fn, 'unknown index entry type %r' % type)
+                except ValueError, err:
+                    self.warn(fn, str(err))
 
         # sort the index entries; put all symbols at the front, even those
         # following the letters in ASCII, this is where the chr(127) comes from
         def keyfunc(entry, lcletters=string.ascii_lowercase + '_'):
-            lckey = entry[0].lower()
+            lckey = unicodedata.normalize('NFD', entry[0].lower())
             if lckey[0:1] in lcletters:
                 return chr(127) + lckey
             return lckey
         newlist = new.items()
         newlist.sort(key=keyfunc)
 
-        # fixup entries: transform
-        #   func() (in module foo)
-        #   func() (in module bar)
-        # into
-        #   func()
-        #     (in module foo)
-        #     (in module bar)
-        oldkey = ''
-        oldsubitems = None
-        i = 0
-        while i < len(newlist):
-            key, (targets, subitems) = newlist[i]
-            # cannot move if it has subitems; structure gets too complex
-            if not subitems:
-                m = _fixre.match(key)
-                if m:
-                    if oldkey == m.group(1):
-                        # prefixes match: add entry as subitem of the
-                        # previous entry
-                        oldsubitems.setdefault(m.group(2), [[], {}])[0].\
-                                    extend(targets)
-                        del newlist[i]
-                        continue
-                    oldkey = m.group(1)
-                else:
-                    oldkey = key
-            oldsubitems = subitems
-            i += 1
+        if group_entries:
+            # fixup entries: transform
+            #   func() (in module foo)
+            #   func() (in module bar)
+            # into
+            #   func()
+            #     (in module foo)
+            #     (in module bar)
+            oldkey = ''
+            oldsubitems = None
+            i = 0
+            while i < len(newlist):
+                key, (targets, subitems) = newlist[i]
+                # cannot move if it has subitems; structure gets too complex
+                if not subitems:
+                    m = _fixre.match(key)
+                    if m:
+                        if oldkey == m.group(1):
+                            # prefixes match: add entry as subitem of the
+                            # previous entry
+                            oldsubitems.setdefault(m.group(2), [[], {}])[0].\
+                                        extend(targets)
+                            del newlist[i]
+                            continue
+                        oldkey = m.group(1)
+                    else:
+                        oldkey = key
+                oldsubitems = subitems
+                i += 1
 
         # group the entries by letter
         def keyfunc2(item, letters=string.ascii_uppercase + '_'):
@@ -1577,7 +1613,7 @@ class BuildEnvironment:
             k, v = item
             v[1] = sorted((si, se) for (si, (se, void)) in v[1].iteritems())
             # now calculate the key
-            letter = k[0].upper()
+            letter = unicodedata.normalize('NFD', k[0])[0].upper()
             if letter in letters:
                 return letter
             else:

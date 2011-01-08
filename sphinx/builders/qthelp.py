@@ -5,7 +5,7 @@
 
     Build input files for the Qt collection generator.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -23,7 +23,7 @@ from sphinx.builders.html import StandaloneHTMLBuilder
 
 
 _idpattern = re.compile(
-    r'(?P<title>.+) (\((?P<id>[\w\.]+)( (?P<descr>\w+))?\))$')
+    r'(?P<title>.+) (\((class in )?(?P<id>[\w\.]+)( (?P<descr>\w+))?\))$')
 
 
 # Qt Help Collection Project (.qhcp).
@@ -143,7 +143,7 @@ class QtHelpBuilder(StandaloneHTMLBuilder):
 
         # keywords
         keywords = []
-        index = self.env.create_index(self)
+        index = self.env.create_index(self, group_entries=False)
         for (key, group) in index:
             for title, (refs, subitems) in group:
                 keywords.extend(self.build_keywords(title, refs, subitems))

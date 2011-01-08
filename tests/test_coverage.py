@@ -5,7 +5,7 @@
 
     Test the coverage builder.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -26,6 +26,8 @@ def test_build(app):
     assert ' * process_docstring\n' in py_undoc
     assert ' * function\n' not in py_undoc  # these two are documented
     assert ' * Class\n' not in py_undoc     # in autodoc.txt
+
+    assert ' * mod -- No module named mod'  # in the "failed import" section
 
     c_undoc = (app.outdir / 'c.txt').text()
     assert c_undoc.startswith('Undocumented C API elements\n'

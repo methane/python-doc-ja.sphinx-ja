@@ -6,7 +6,7 @@
     Test the sphinx.config.Config class and its handling in the
     Application class.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 import sys
@@ -39,7 +39,7 @@ def test_core_config(app):
 
     # complex default values
     assert 'html_title' not in cfg.__dict__
-    assert cfg.html_title == 'Sphinx <Tests> v0.6alpha1 documentation'
+    assert cfg.html_title == 'Sphinx <Tests> 0.6alpha1 documentation'
 
     # complex default values mustn't raise
     for valuename in cfg.config_values:

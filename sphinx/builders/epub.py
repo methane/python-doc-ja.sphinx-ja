@@ -6,12 +6,13 @@
     Build epub files.
     Originally derived from qthelp.py.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 import os
 import re
+import sys
 import time
 import codecs
 import zipfile
@@ -288,16 +289,17 @@ class EpubBuilder(StandaloneHTMLBuilder):
         # Logic modeled from themes/basic/genindex.html
         for key, columns in tree:
             for entryname, (links, subitems) in columns:
-                for (i, link) in enumerate(links):
+                for (i, (ismain, link)) in enumerate(links):
                     m = _refuri_re.match(link)
                     if m:
-                        links[i] = self.fix_fragment(m.group(1), m.group(2))
+                        links[i] = (ismain,
+                                    self.fix_fragment(m.group(1), m.group(2)))
                 for subentryname, subentrylinks in subitems:
-                    for (i, link) in enumerate(subentrylinks):
+                    for (i, (ismain, link)) in enumerate(subentrylinks):
                         m = _refuri_re.match(link)
                         if m:
-                            subentrylinks[i] = \
-                                self.fix_fragment(m.group(1), m.group(2))
+                            subentrylinks[i] = (ismain,
+                                self.fix_fragment(m.group(1), m.group(2)))
 
     def handle_page(self, pagename, addctx, templatename='page.html',
                     outfilename=None, event_arg=None):
@@ -542,7 +544,8 @@ class EpubBuilder(StandaloneHTMLBuilder):
         epub.write(path.join(outdir, 'mimetype'), 'mimetype', \
             zipfile.ZIP_STORED)
         for file in projectfiles:
-            if isinstance(file, unicode):
-                file = file.encode('utf-8')
-            epub.write(path.join(outdir, file), file, zipfile.ZIP_DEFLATED)
+            fp = path.join(outdir, file)
+            if isinstance(fp, unicode):
+                fp = fp.encode(sys.getfilesystemencoding())
+            epub.write(fp, file, zipfile.ZIP_DEFLATED)
         epub.close()

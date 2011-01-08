@@ -5,7 +5,7 @@
 
     The C++ language domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -23,11 +23,12 @@ from sphinx.util.nodes import make_refnode
 from sphinx.util.compat import Directive
 
 
-_identifier_re = re.compile(r'\b(~?[a-zA-Z_][a-zA-Z0-9_]*)\b')
+_identifier_re = re.compile(r'(~?\b[a-zA-Z_][a-zA-Z0-9_]*)\b')
 _whitespace_re = re.compile(r'\s+(?u)')
 _string_re = re.compile(r"[LuU8]?('([^'\\]*(?:\\.[^'\\]*)*)'"
                         r'|"([^"\\]*(?:\\.[^"\\]*)*)")', re.S)
 _visibility_re = re.compile(r'\b(public|private|protected)\b')
+_array_def_re = re.compile(r'\[\s*(.+?)?\s*\]')
 _operator_re = re.compile(r'''(?x)
         \[\s*\]
     |   \(\s*\)
@@ -150,12 +151,12 @@ class DefExpr(object):
         return None
 
     def split_owner(self):
-        """Nodes returned by :meth:`get_name` can split off their owning parent.
-
-        This function returns the owner and the name as a tuple of two items.
-        If a node does not support it, :exc:`NotImplementedError` is raised.
+        """Nodes returned by :meth:`get_name` can split off their
+        owning parent.  This function returns the owner and the
+        name as a tuple of two items.  If a node does not support
+        it, it returns None as owner and self as name.
         """
-        raise NotImplementedError()
+        return None, self
 
     def prefix(self, prefix):
         """Prefix a name node (a node returned by :meth:`get_name`)."""
@@ -165,16 +166,13 @@ class DefExpr(object):
         return unicode(self).encode('utf-8')
 
     def __repr__(self):
-        return '<defexpr %s>' % self
+        return '<%s %s>' % (self.__class__.__name__, self)
 
 
 class PrimaryDefExpr(DefExpr):
 
     def get_name(self):
         return self
-
-    def split_owner(self):
-        return None, self
 
     def prefix(self, prefix):
         if isinstance(prefix, PathDefExpr):
@@ -276,6 +274,22 @@ class PtrDefExpr(WrappingDefExpr):
         return u'%s*' % self.typename
 
 
+class ArrayDefExpr(WrappingDefExpr):
+
+    def __init__(self, typename, size_hint=None):
+        WrappingDefExpr.__init__(self, typename)
+        self.size_hint = size_hint
+
+    def get_id(self):
+        return self.typename.get_id() + u'A'
+
+    def __unicode__(self):
+        return u'%s[%s]' % (
+            self.typename,
+            self.size_hint is not None and unicode(self.size_hint) or u''
+        )
+
+
 class RefDefExpr(WrappingDefExpr):
 
     def get_id(self):
@@ -326,9 +340,8 @@ class ArgumentDefExpr(DefExpr):
         return self.type.get_id()
 
     def __unicode__(self):
-        return (self.type is not None and u'%s %s' % (self.type, self.name)
-                or unicode(self.name)) + (self.default is not None and
-                                          u'=%s' % self.default or u'')
+        return (u'%s %s' % (self.type or u'', self.name or u'')).strip() + \
+               (self.default is not None and u'=%s' % self.default or u'')
 
 
 class NamedDefExpr(DefExpr):
@@ -448,9 +461,9 @@ class DefinitionParser(object):
         'mutable':      None,
         'const':        None,
         'typename':     None,
-        'unsigned':     set(('char', 'int', 'long')),
-        'signed':       set(('char', 'int', 'long')),
-        'short':        set(('int', 'short')),
+        'unsigned':     set(('char', 'short', 'int', 'long')),
+        'signed':       set(('char', 'short', 'int', 'long')),
+        'short':        set(('int',)),
         'long':         set(('int', 'long', 'double'))
     }
 
@@ -566,6 +579,8 @@ class DefinitionParser(object):
                 expr = ConstDefExpr(expr)
             elif self.skip_string('*'):
                 expr = PtrDefExpr(expr)
+            elif self.match(_array_def_re):
+                expr = ArrayDefExpr(expr, self.last_match.group(1))
             elif self.skip_string('&'):
                 expr = RefDefExpr(expr)
             else:
@@ -697,14 +712,13 @@ class DefinitionParser(object):
                     self.fail('expected comma between arguments')
                 self.skip_ws()
 
-            argname = self._parse_type()
-            argtype = default = None
+            argtype = self._parse_type()
+            argname = default = None
             self.skip_ws()
             if self.skip_string('='):
                 self.pos += 1
                 default = self._parse_default_expr()
             elif self.current_char not in ',)':
-                argtype = argname
                 argname = self._parse_name()
                 self.skip_ws()
                 if self.skip_string('='):
@@ -827,17 +841,18 @@ class CPPObject(ObjectDescription):
     def add_target_and_index(self, sigobj, sig, signode):
         theid = sigobj.get_id()
         name = unicode(sigobj.name)
-        signode['names'].append(theid)
-        signode['ids'].append(theid)
-        signode['first'] = (not self.names)
-        self.state.document.note_explicit_target(signode)
+        if theid not in self.state.document.ids:
+            signode['names'].append(theid)
+            signode['ids'].append(theid)
+            signode['first'] = (not self.names)
+            self.state.document.note_explicit_target(signode)
 
-        self.env.domaindata['cpp']['objects'].setdefault(name,
-            (self.env.docname, self.objtype, theid))
+            self.env.domaindata['cpp']['objects'].setdefault(name,
+                (self.env.docname, self.objtype, theid))
 
         indextext = self.get_index_text(name)
         if indextext:
-            self.indexnode['entries'].append(('single', indextext, name, name))
+            self.indexnode['entries'].append(('single', indextext, theid, ''))
 
     def before_content(self):
         lastname = self.names and self.names[-1]

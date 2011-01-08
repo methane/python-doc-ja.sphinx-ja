@@ -49,7 +49,7 @@
     resolved to a Python object, and otherwise it becomes simple emphasis.
     This can be used as the default role to make links 'smart'.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -481,12 +481,14 @@ def setup(app):
                  html=(autosummary_toc_visit_html, autosummary_noop),
                  latex=(autosummary_noop, autosummary_noop),
                  text=(autosummary_noop, autosummary_noop),
-                 man=(autosummary_noop, autosummary_noop))
+                 man=(autosummary_noop, autosummary_noop),
+                 texinfo=(autosummary_noop, autosummary_noop))
     app.add_node(autosummary_table,
                  html=(autosummary_table_visit_html, autosummary_noop),
                  latex=(autosummary_noop, autosummary_noop),
                  text=(autosummary_noop, autosummary_noop),
-                 man=(autosummary_noop, autosummary_noop))
+                 man=(autosummary_noop, autosummary_noop),
+                 texinfo=(autosummary_noop, autosummary_noop))
     app.add_directive('autosummary', Autosummary)
     app.add_role('autolink', autolink_role)
     app.connect('doctree-read', process_autosummary_toc)

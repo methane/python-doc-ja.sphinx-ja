@@ -231,6 +231,45 @@ The following directives are provided for module and class contents:
 
    .. versionadded:: 0.6
 
+.. rst:directive:: .. py:decorator:: name
+                   .. py:decorator:: name(signature)
+
+   Describes a decorator function.  The signature should *not* represent the
+   signature of the actual function, but the usage as a decorator.  For example,
+   given the functions
+
+   .. code-block:: python
+
+      def removename(func):
+          func.__name__ = ''
+          return func
+
+      def setnewname(name):
+          def decorator(func):
+              func.__name__ = name
+              return func
+          return decorator
+
+   the descriptions should look like this::
+
+      .. py:decorator:: removename
+
+         Remove name of the decorated function.
+
+      .. py:decorator:: setnewname(name)
+
+         Set name of the decorated function to *name*.
+
+   There is no ``py:deco`` role to link to a decorator that is marked up with
+   this directive; rather, use the :rst:role:`py:func` role.
+
+.. rst:directive:: .. py:decoratormethod:: name
+                   .. py:decoratormethod:: name(signature)
+
+   Same as :rst:dir:`py:decorator`, but for decorators that are methods.
+
+   Refer to a decorator method using the :rst:role:`py:meth` role.
+
 
 .. _signatures:
 
@@ -288,11 +327,6 @@ explained by an example::
       :type limit: integer or None
       :rtype: list of strings
 
-It is also possible to combine parameter type and description, if the type is a
-single word, like this::
-
-   :param integer limit: maximum number of stack frames to show
-
 This will render like this:
 
    .. py:function:: format_exception(etype, value, tb[, limit=None])
@@ -307,6 +341,13 @@ This will render like this:
       :type limit: integer or None
       :rtype: list of strings
 
+It is also possible to combine parameter type and description, if the type is a
+single word, like this::
+
+   :param integer limit: maximum number of stack frames to show
+
+
+.. _python-roles:
 
 Cross-referencing Python objects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -438,6 +479,8 @@ The C domain (name **c**) is suited for documentation of C API.
       .. c:var:: PyObject* PyClass_Type
 
 
+.. _c-roles:
+
 Cross-referencing C constructs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -521,6 +564,9 @@ The following directives are available:
 .. rst:directive:: .. cpp:namespace:: namespace
 
    Select the current C++ namespace for the following objects.
+
+
+.. _cpp-roles:
 
 These roles link to the given object types:
 
@@ -689,6 +735,8 @@ The JavaScript domain (name **js**) provides the following directives:
 
    Describes the attribute *name* of *object*.
 
+.. _js-roles:
+
 These roles are provided to refer to the described objects:
 
 .. rst:role:: js:func
@@ -739,6 +787,8 @@ The reStructuredText domain (name **rst**) provides the following directives:
       .. rst:role:: foo
 
          Foo description.
+
+.. _rst-roles:
 
 These roles are provided to refer to the described objects:
 

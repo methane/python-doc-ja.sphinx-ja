@@ -5,7 +5,7 @@
 
     The JavaScript domain.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -96,7 +96,7 @@ class JSObject(ObjectDescription):
         indextext = self.get_index_text(objectname, name_obj)
         if indextext:
             self.indexnode['entries'].append(('single', indextext,
-                                              fullname, fullname))
+                                              fullname, ''))
 
     def get_index_text(self, objectname, name_obj):
         name, obj = name_obj

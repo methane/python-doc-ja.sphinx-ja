@@ -5,7 +5,7 @@
 
     Add links to module code in Python object descriptions.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -54,7 +54,7 @@ def doctree_read(app, doctree):
             modname = signode.get('module')
             if not modname:
                 continue
-            fullname = signode['fullname']
+            fullname = signode.get('fullname')
             if not has_tag(modname, fullname, env.docname):
                 continue
             if fullname in names:

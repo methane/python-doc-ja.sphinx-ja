@@ -6,7 +6,7 @@
     Test the autodoc extension.  This tests mainly the Documenters; the auto
     directives are tested in a test source file translated by test_build.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -17,12 +17,14 @@ from docutils.statemachine import ViewList
 from sphinx.ext.autodoc import AutoDirective, add_documenter, \
      ModuleLevelDocumenter, FunctionDocumenter, cut_lines, between, ALL
 
+from StringIO import StringIO
 
 def setup_module():
     global app, lid, options, directive
 
     app = TestApp()
     app.builder.env.app = app
+    app.builder.env.temp_data['docname'] = 'dummy'
     app.connect('autodoc-process-docstring', process_docstring)
     app.connect('autodoc-process-signature', process_signature)
     app.connect('autodoc-skip-member', skip_member)
@@ -30,6 +32,8 @@ def setup_module():
     options = Struct(
         inherited_members = False,
         undoc_members = False,
+        private_members = False,
+        special_members = False,
         show_inheritance = False,
         noindex = False,
         synopsis = '',
@@ -416,6 +420,7 @@ def test_generate():
                    ('attribute', 'test_autodoc.Class.attr'),
                    ('attribute', 'test_autodoc.Class.docattr'),
                    ('attribute', 'test_autodoc.Class.udocattr'),
+                   ('attribute', 'test_autodoc.Class.mdocattr'),
                    ('attribute', 'test_autodoc.Class.inst_attr_comment'),
                    ('attribute', 'test_autodoc.Class.inst_attr_string')
                    ])
@@ -484,11 +489,26 @@ def test_generate():
                   '   .. py:attribute:: Class.prop',
                   '   .. py:attribute:: Class.docattr',
                   '   .. py:attribute:: Class.udocattr',
+                  '   .. py:attribute:: Class.mdocattr',
                   '   .. py:attribute:: Class.inst_attr_comment',
                   '   .. py:attribute:: Class.inst_attr_string',
                   '   .. py:method:: Class.inheritedmeth()',
                   ],
                  'class', 'Class', member_order='bysource', all_members=True)
+    del directive.env.temp_data['py:module']
+
+    # test attribute initialized to class instance from other module
+    directive.env.temp_data['autodoc:class'] = 'test_autodoc.Class'
+    assert_result_contains(u'   should be documented as well - s\xfc\xdf',
+                           'attribute', 'mdocattr')
+    del directive.env.temp_data['autodoc:class']
+
+    # test autodoc_docstring_signature
+    assert_result_contains(
+        '.. py:method:: DocstringSig.meth(FOO, BAR=1) -> BAZ', 'method',
+        'test_autodoc.DocstringSig.meth')
+    assert_result_contains(
+        '   rest of docstring', 'method', 'test_autodoc.DocstringSig.meth')
 
 
 # --- generate fodder ------------
@@ -552,6 +572,10 @@ class Class(Base):
     udocattr = 'quux'
     u"""should be documented as well - süß"""
 
+    # initialized to any class imported from another module
+    mdocattr = StringIO()
+    """should be documented as well - süß"""
+
     def __init__(self, arg):
         #: a documented instance attribute
         self.inst_attr_comment = None
@@ -580,3 +604,12 @@ class Outer(object):
 
     # should be documented as an alias
     factory = dict
+
+
+class DocstringSig(object):
+    def meth(self):
+        """meth(FOO, BAR=1) -> BAZ
+First line of docstring
+
+        rest of docstring
+        """

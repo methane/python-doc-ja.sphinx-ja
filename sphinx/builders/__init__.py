@@ -5,7 +5,7 @@
 
     Builder superclass for all builders.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -272,7 +272,8 @@ class Builder(object):
         # add all toctree-containing files that may have changed
         for docname in list(docnames):
             for tocdocname in self.env.files_to_rebuild.get(docname, []):
-                docnames.add(tocdocname)
+                if tocdocname in self.env.found_docs:
+                    docnames.add(tocdocname)
         docnames.add(self.config.master_doc)
 
         self.info(bold('preparing documents... '), nonl=True)
@@ -325,6 +326,7 @@ BUILTIN_BUILDERS = {
     'latex':      ('latex', 'LaTeXBuilder'),
     'text':       ('text', 'TextBuilder'),
     'man':        ('manpage', 'ManualPageBuilder'),
+    'texinfo':    ('texinfo', 'TexinfoBuilder'),
     'changes':    ('changes', 'ChangesBuilder'),
     'linkcheck':  ('linkcheck', 'CheckExternalLinksBuilder'),
     'websupport': ('websupport', 'WebSupportBuilder'),

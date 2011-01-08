@@ -5,7 +5,7 @@
 
     Test the build process with LaTeX builder with the test root.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -30,6 +30,7 @@ latex_warnfile = StringIO()
 LATEX_WARNINGS = ENV_WARNINGS + """\
 None:None: WARNING: no matching candidate for image URI u'foo.\\*'
 WARNING: invalid pair index entry u''
+WARNING: invalid pair index entry u'keyword; '
 """
 
 if sys.version_info >= (3, 0):

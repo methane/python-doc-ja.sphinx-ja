@@ -8,7 +8,7 @@
 
     :author: Sebastian Wiesner
     :contact: basti.wiesner@gmx.net
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -111,7 +111,6 @@ class BuildDoc(Command):
             build = self.get_finalized_command('build')
             self.build_dir = os.path.join(build.build_base, 'sphinx')
             self.mkpath(self.build_dir)
-        self.ensure_dirname('build_dir')
         self.doctree_dir = os.path.join(self.build_dir, 'doctrees')
         self.mkpath(self.doctree_dir)
         self.builder_target_dir = os.path.join(self.build_dir, self.builder)

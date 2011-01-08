@@ -6,7 +6,7 @@
     Allow graphviz-formatted graphs to be included in Sphinx-generated
     documents inline.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -287,7 +287,8 @@ def render_dot_latex(self, node, code, options, prefix='graphviz'):
             self.body.append('\n\\end{center}')
             self.body.append('\n\\end{figure}\n')
         else:
-            self.body.append('%s\\includegraphics{%s}' % (para_separator, fname, para_separator))
+            self.body.append('%s\\includegraphics{%s}' %
+                             (para_separator, fname, para_separator))
     raise nodes.SkipNode
 
 

@@ -5,7 +5,7 @@
 
     Additional docutils nodes.
 
-    :copyright: Copyright 2007-2010 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2011 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -170,6 +170,9 @@ class literal_emphasis(nodes.emphasis):
 
 class abbreviation(nodes.Inline, nodes.TextElement):
     """Node for abbreviations with explanations."""
+
+class termsep(nodes.Structural, nodes.Element):
+    """Separates two terms within a <term> node."""
 
 
 # make the new nodes known to docutils; needed because the HTML writer will
