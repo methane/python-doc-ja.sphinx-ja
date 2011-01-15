@@ -44,6 +44,7 @@ latex_logo = '_static/sphinx.png'
 latex_elements = {
     'fontpkg': '\\usepackage{palatino}',
 }
+latex_show_urls = 'footnote'
 
 autodoc_member_order = 'groupwise'
 todo_include_todos = True
@@ -61,6 +62,12 @@ man_pages = [
      '', 1),
     ('man/sphinx-quickstart', 'sphinx-quickstart', 'Sphinx documentation '
      'template generator', '', 1),
+]
+
+texinfo_documents = [
+    ('contents', 'sphinx', 'Sphinx Documentation', 'Georg Brandl',
+     'Sphinx', 'The Sphinx documentation builder.', 'Documentation tools',
+     1),
 ]
 
 # We're not using intersphinx right now, but if we did, this would be part of

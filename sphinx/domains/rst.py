@@ -48,7 +48,7 @@ class ReSTMarkup(ObjectDescription):
         indextext = self.get_index_text(self.objtype, name)
         if indextext:
             self.indexnode['entries'].append(('single', indextext,
-                                              targetname, targetname))
+                                              targetname, ''))
 
     def get_index_text(self, objectname, name):
         if self.objtype == 'directive':
@@ -59,9 +59,10 @@ class ReSTMarkup(ObjectDescription):
 
 
 def parse_directive(d):
-    """
-    Parses a directive signature. Returns (directive, arguments) string tuple.
-    if no arguments are given, returns (directive, '').
+    """Parse a directive signature.
+
+    Returns (directive, arguments) string tuple.  If no arguments are given,
+    returns (directive, '').
     """
     dir = d.strip()
     if not dir.startswith('.'):
