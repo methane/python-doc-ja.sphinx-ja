@@ -21,11 +21,12 @@ Documentation using the default theme
 * C\\C++ Python language binding project: http://language-binding.net/index.html
 * Director: http://packages.python.org/director/
 * Dirigible: http://www.projectdirigible.com/documentation/
-* F2py: http://www.f2py.org/html/
+* F2py: http://f2py.sourceforge.net/docs/
 * GeoDjango: http://geodjango.org/docs/
 * gevent: http://www.gevent.org/
 * Google Wave API: http://wave-robot-python-client.googlecode.com/svn/trunk/pydocs/index.html
 * GSL Shell: http://www.nongnu.org/gsl-shell/
+* Heapkeeper: http://heapkeeper.org/
 * Hands-on Python Tutorial: http://anh.cs.luc.edu/python/hands-on/3.1/handsonHtml/
 * Hedge: http://documen.tician.de/hedge/
 * Kaa: http://doc.freevo.org/api/kaa/
@@ -73,7 +74,6 @@ Documentation using a customized version of the default theme
 * NOC: http://trac.nocproject.org/trac/wiki/NocGuide
 * NumPy: http://docs.scipy.org/doc/numpy/reference/
 * Peach^3: http://peach3.nl/doc/latest/userdoc/
-* Py on Windows: http://timgolden.me.uk/python-on-windows/
 * PyLit: http://pylit.berlios.de/
 * Sage: http://sagemath.org/doc/
 * SciPy: http://docs.scipy.org/doc/scipy/reference/
@@ -113,7 +113,7 @@ Documentation using another builtin theme
 
 * C/C++ Development with Eclipse: http://book.dehlia.in/c-cpp-eclipse/ (agogo)
 * Distribute: http://packages.python.org/distribute/ (nature)
-* Jinja: http://jinja.pocoo.org/2/documentation/ (scrolls)
+* Jinja: http://jinja.pocoo.org/ (scrolls)
 * pip: http://pip.openplans.org/ (nature)
 * Programmieren mit PyGTK und Glade (German):
   http://www.florian-diesch.de/doc/python-und-glade/online/ (agogo)
