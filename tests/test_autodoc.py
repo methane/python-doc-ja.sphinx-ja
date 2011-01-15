@@ -10,6 +10,9 @@
     :license: BSD, see LICENSE for details.
 """
 
+import sys
+from StringIO import StringIO
+
 from util import *
 
 from docutils.statemachine import ViewList
@@ -17,7 +20,6 @@ from docutils.statemachine import ViewList
 from sphinx.ext.autodoc import AutoDirective, add_documenter, \
      ModuleLevelDocumenter, FunctionDocumenter, cut_lines, between, ALL
 
-from StringIO import StringIO
 
 def setup_module():
     global app, lid, options, directive
@@ -32,6 +34,8 @@ def setup_module():
     options = Struct(
         inherited_members = False,
         undoc_members = False,
+        private_members = False,
+        special_members = False,
         show_inheritance = False,
         noindex = False,
         synopsis = '',
@@ -337,6 +341,7 @@ def test_generate():
         inst = AutoDirective._registry[objtype](directive, name)
         inst.generate(**kw)
         assert directive.result
+        #print '\n'.join(directive.result)
         assert len(_warnings) == 0, _warnings
         del directive.result[:]
 
@@ -420,12 +425,16 @@ def test_generate():
                    ('attribute', 'test_autodoc.Class.udocattr'),
                    ('attribute', 'test_autodoc.Class.mdocattr'),
                    ('attribute', 'test_autodoc.Class.inst_attr_comment'),
-                   ('attribute', 'test_autodoc.Class.inst_attr_string')
+                   ('attribute', 'test_autodoc.Class.inst_attr_inline'),
+                   ('attribute', 'test_autodoc.Class.inst_attr_string'),
+                   ('method', 'test_autodoc.Class.moore'),
                    ])
     options.members = ALL
     assert_processes(should, 'class', 'Class')
     options.undoc_members = True
-    should.append(('method', 'test_autodoc.Class.undocmeth'))
+    should.extend((('attribute', 'test_autodoc.Class.skipattr'),
+                   ('method', 'test_autodoc.Class.undocmeth'),
+                   ('method', 'test_autodoc.Class.roger')))
     assert_processes(should, 'class', 'Class')
     options.inherited_members = True
     should.append(('method', 'test_autodoc.Class.inheritedmeth'))
@@ -488,6 +497,8 @@ def test_generate():
                   '   .. py:attribute:: Class.docattr',
                   '   .. py:attribute:: Class.udocattr',
                   '   .. py:attribute:: Class.mdocattr',
+                  '   .. py:classmethod:: Class.roger(a, e=5, f=6)',
+                  '   .. py:classmethod:: Class.moore(a, e, f) -> happiness',
                   '   .. py:attribute:: Class.inst_attr_comment',
                   '   .. py:attribute:: Class.inst_attr_string',
                   '   .. py:method:: Class.inheritedmeth()',
@@ -501,11 +512,34 @@ def test_generate():
                            'attribute', 'mdocattr')
     del directive.env.temp_data['autodoc:class']
 
+    # test autodoc_docstring_signature
+    assert_result_contains(
+        '.. py:method:: DocstringSig.meth(FOO, BAR=1) -> BAZ', 'method',
+        'test_autodoc.DocstringSig.meth')
+    assert_result_contains(
+        '   rest of docstring', 'method', 'test_autodoc.DocstringSig.meth')
+    assert_result_contains(
+        '.. py:classmethod:: Class.moore(a, e, f) -> happiness', 'method',
+        'test_autodoc.Class.moore')
+
+    # test new attribute documenter behavior
+    directive.env.temp_data['py:module'] = 'test_autodoc'
+    options.undoc_members = True
+    assert_processes([('class', 'test_autodoc.AttCls'),
+                      ('attribute', 'test_autodoc.AttCls.a1'),
+                      ('attribute', 'test_autodoc.AttCls.a2'),
+                      ], 'class', 'AttCls')
+    assert_result_contains(
+        '   :annotation: = hello world', 'attribute', 'AttCls.a1')
+    assert_result_contains(
+        '   :annotation: = None', 'attribute', 'AttCls.a2')
+
 
 # --- generate fodder ------------
 
 __all__ = ['Class']
 
+#: documentation for the integer
 integer = 1
 
 class CustomEx(Exception):
@@ -524,6 +558,21 @@ class CustomDataDescriptor(object):
         if obj is None:
             return self
         return 42
+
+def _funky_classmethod(name, b, c, d, docstring=None):
+    """Generates a classmethod for a class from a template by filling out
+    some arguments."""
+    def template(cls, a, b, c, d=4, e=5, f=6):
+        return a, b, c, d, e, f
+    if sys.version_info >= (2, 5):
+        from functools import partial
+        function = partial(template, b=b, c=c, d=d)
+    else:
+        def function(cls, a, e=5, f=6):
+            return template(a, b, c, d, e, f)
+    function.__name__ = name
+    function.__doc__ = docstring
+    return classmethod(function)
 
 class Base(object):
     def inheritedmeth(self):
@@ -567,7 +616,13 @@ class Class(Base):
     mdocattr = StringIO()
     """should be documented as well - süß"""
 
+    roger = _funky_classmethod("roger", 2, 3, 4)
+
+    moore = _funky_classmethod("moore", 9, 8, 7,
+        docstring="moore(a, e, f) -> happiness")
+
     def __init__(self, arg):
+        self.inst_attr_inline = None #: an inline documented instance attr
         #: a documented instance attribute
         self.inst_attr_comment = None
         self.inst_attr_string = None
@@ -595,3 +650,20 @@ class Outer(object):
 
     # should be documented as an alias
     factory = dict
+
+
+class DocstringSig(object):
+    def meth(self):
+        """meth(FOO, BAR=1) -> BAZ
+First line of docstring
+
+        rest of docstring
+        """
+
+class StrRepr(str):
+    def __repr__(self):
+        return self
+
+class AttCls(object):
+    a1 = StrRepr('hello\nworld')
+    a2 = None
