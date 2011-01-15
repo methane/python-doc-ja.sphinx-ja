@@ -12,6 +12,7 @@
 import os
 import re
 import htmlentitydefs
+import sys
 from StringIO import StringIO
 
 try:
@@ -40,7 +41,7 @@ http://www.python.org/logo.png
 %(root)s/includes.txt:\\d*: \\(WARNING/2\\) Encoding 'utf-8-sig' used for \
 reading included file u'.*?wrongenc.inc' seems to be wrong, try giving an \
 :encoding: option\\n?
-%(root)s/includes.txt:4: WARNING: download file not readable: nonexisting.png
+%(root)s/includes.txt:4: WARNING: download file not readable: .*?nonexisting.png
 %(root)s/objects.txt:\\d*: WARNING: using old C markup; please migrate to \
 new-style markup \(e.g. c:function instead of cfunction\), see \
 http://sphinx.pocoo.org/domains.html
@@ -48,10 +49,15 @@ http://sphinx.pocoo.org/domains.html
 
 HTML_WARNINGS = ENV_WARNINGS + """\
 %(root)s/images.txt:20: WARNING: no matching candidate for image URI u'foo.\\*'
-%(root)s/markup.txt:: WARNING: invalid index entry u''
+%(root)s/markup.txt:: WARNING: invalid single index entry u''
 %(root)s/markup.txt:: WARNING: invalid pair index entry u''
 %(root)s/markup.txt:: WARNING: invalid pair index entry u'keyword; '
 """
+
+if sys.version_info >= (3, 0):
+    ENV_WARNINGS = remove_unicode_literals(ENV_WARNINGS)
+    HTML_WARNINGS = remove_unicode_literals(HTML_WARNINGS)
+
 
 def tail_check(check):
     rex = re.compile(check)
@@ -226,6 +232,14 @@ HTML_XPATH = {
     '_static/statictmpl.html': [
         (".//project", 'Sphinx <Tests>'),
     ],
+    'genindex.html': [
+        # index entries
+        (".//a/strong", "Main"),
+        (".//a/strong", "[1]"),
+        (".//a/strong", "Other"),
+        (".//a", "entry"),
+        (".//dt/a", "double"),
+    ]
 }
 
 if pygments:
@@ -238,7 +252,7 @@ if pygments:
         (".//div[@class='inc-lines highlight-text']//pre",
             r'^class Foo:\n    pass\nclass Bar:\n$'),
         (".//div[@class='inc-startend highlight-text']//pre",
-            ur'^foo = u"Including Unicode characters: üöä"\n$'),
+            ur'^foo = "Including Unicode characters: üöä"\n$'),
         (".//div[@class='inc-preappend highlight-text']//pre",
             r'(?m)^START CODE$'),
         (".//div[@class='inc-pyobj-dedent highlight-python']//span",

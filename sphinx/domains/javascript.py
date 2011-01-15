@@ -97,7 +97,7 @@ class JSObject(ObjectDescription):
         if indextext:
             self.indexnode['entries'].append(('single', indextext,
                                               fullname.replace('$', '_S_'),
-                                              fullname))
+                                              ''))
 
     def get_index_text(self, objectname, name_obj):
         name, obj = name_obj
@@ -131,7 +131,7 @@ class JSCallable(JSObject):
 
 
 class JSConstructor(JSCallable):
-    """Like a callable but with a different prefix"""
+    """Like a callable but with a different prefix."""
     display_prefix = 'class '
 
 

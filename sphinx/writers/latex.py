@@ -23,6 +23,7 @@ from sphinx import addnodes
 from sphinx import highlighting
 from sphinx.errors import SphinxError
 from sphinx.locale import admonitionlabels, versionlabels, _
+from sphinx.util import split_into
 from sphinx.util.osutil import ustrftime
 from sphinx.util.pycompat import any
 from sphinx.util.texescape import tex_escape_map, tex_replace_map
@@ -330,7 +331,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
             # ... and all others are the appendices
             self.body.append(u'\n\\appendix\n')
             self.first_document = -1
-        if node.has_key('docname'):
+        if 'docname' in node:
             self.body.append(self.hypertarget(':doc'))
         # "- 1" because the level is increased before the title is visited
         self.sectionlevel = self.top_sectionlevel - 1
@@ -700,25 +701,25 @@ class LaTeXTranslator(nodes.NodeVisitor):
         if self.next_table_colspec:
             self.table.colspec = '{%s}\n' % self.next_table_colspec
         self.next_table_colspec = None
-#        self.body.append('\\hline\n')
-#        self.table.had_head = True
+        # self.body.append('\\hline\n')
+        # self.table.had_head = True
     def depart_thead(self, node):
-        self.body.append('\\hline\n')
+        pass
 
     def visit_tbody(self, node):
         if not self.table.had_head:
             self.visit_thead(node)
     def depart_tbody(self, node):
-        self.body.append('\\hline\n')
+        pass
 
     def visit_row(self, node):
         self.table.col = 0
     def depart_row(self, node):
-        self.body.append('\\\\\n')
+        self.body.append('\\\\\\hline\n')
         self.table.rowcount += 1
 
     def visit_entry(self, node):
-        if node.has_key('morerows') or node.has_key('morecols'):
+        if 'morerows' in node or 'morecols' in node:
             raise UnsupportedError('%s:%s: column or row spanning cells are '
                                    'not yet implemented.' %
                                    (self.curfilestack[-1], node.line or ''))
@@ -781,12 +782,16 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_term(self, node):
         ctx = '}] \\leavevmode'
-        if node.has_key('ids') and node['ids']:
+        if node.get('ids'):
             ctx += self.hypertarget(node['ids'][0])
         self.body.append('\\item[{')
         self.context.append(ctx)
     def depart_term(self, node):
         self.body.append(self.context.pop())
+
+    def visit_termsep(self, node):
+        self.body.append(', ')
+        raise nodes.SkipNode
 
     def visit_classifier(self, node):
         self.body.append('{[}')
@@ -869,20 +874,20 @@ class LaTeXTranslator(nodes.NodeVisitor):
         post = []
         include_graphics_options = []
         is_inline = self.is_inline(node)
-        if attrs.has_key('scale'):
+        if 'scale' in attrs:
             # Could also be done with ``scale`` option to
             # ``\includegraphics``; doing it this way for consistency.
             pre.append('\\scalebox{%f}{' % (attrs['scale'] / 100.0,))
             post.append('}')
-        if attrs.has_key('width'):
+        if 'width' in attrs:
             w = self.latex_image_length(attrs['width'])
             if w:
                 include_graphics_options.append('width=%s' % w)
-        if attrs.has_key('height'):
+        if 'height' in attrs:
             h = self.latex_image_length(attrs['height'])
             if h:
                 include_graphics_options.append('height=%s' % h)
-        if attrs.has_key('align'):
+        if 'align' in attrs:
             align_prepost = {
                 # By default latex aligns the top of an image.
                 (1, 'top'): ('', ''),
@@ -927,13 +932,13 @@ class LaTeXTranslator(nodes.NodeVisitor):
         for id in self.next_figure_ids:
             ids += self.hypertarget(id, anchor=False)
         self.next_figure_ids.clear()
-        if node.has_key('width') and node.get('align', '') in ('left', 'right'):
+        if 'width' in node and node.get('align', '') in ('left', 'right'):
             self.body.append('\\begin{wrapfigure}{%s}{%s}\n\\centering' %
                              (node['align'] == 'right' and 'r' or 'l',
                               node['width']))
             self.context.append(ids + '\\end{wrapfigure}\n')
         else:
-            if (not node.attributes.has_key('align') or
+            if (not 'align' in node.attributes or
                 node.attributes['align'] == 'center'):
                 # centering does not add vertical space like center.
                 align = '\n\\centering'
@@ -1059,29 +1064,39 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.body.append('\n\\end{flushright}\n')
 
     def visit_index(self, node, scre=re.compile(r';\s*')):
-        if not node.get('inline'):
+        if not node.get('inline', True):
             self.body.append('\n')
         entries = node['entries']
-        for type, string, tid, _ in entries:
-            if type == 'single':
-                self.body.append(r'\index{%s}' %
-                                 scre.sub('!', self.encode(string)))
-            elif type == 'pair':
-                parts = tuple(self.encode(x.strip())
-                              for x in string.split(';', 1))
-                try:
-                    self.body.append(r'\indexii{%s}{%s}' % parts)
-                except TypeError:
-                    self.builder.warn('invalid pair index entry %r' % string)
-            elif type == 'triple':
-                parts = tuple(self.encode(x.strip())
-                              for x in string.split(';', 2))
-                try:
-                    self.body.append(r'\indexiii{%s}{%s}{%s}' % parts)
-                except TypeError:
-                    self.builder.warn('invalid triple index entry %r' % string)
-            else:
-                self.builder.warn('unknown index entry type %s found' % type)
+        for type, string, tid, ismain in entries:
+            m = ''
+            if ismain:
+                m = '|textbf'
+            try:
+                if type == 'single':
+                    p = scre.sub('!', self.encode(string))
+                    self.body.append(r'\index{%s%s}' % (p, m))
+                elif type == 'pair':
+                    p1, p2 = map(self.encode, split_into(2, 'pair', string))
+                    self.body.append(r'\index{%s!%s%s}\index{%s!%s%s}' %
+                                     (p1, p2, m,  p2, p1, m))
+                elif type == 'triple':
+                    p1, p2, p3 = map(self.encode,
+                                     split_into(3, 'triple', string))
+                    self.body.append(
+                        r'\index{%s!%s %s%s}\index{%s!%s, %s%s}'
+                        r'\index{%s!%s %s%s}' %
+                        (p1, p2, p3, m,  p2, p3, p1, m,  p3, p1, p2, m))
+                elif type == 'see':
+                    p1, p2 = map(self.encode, split_into(2, 'see', string))
+                    self.body.append(r'\index{%s|see{%s}}' % (p1, p2))
+                elif type == 'seealso':
+                    p1, p2 = map(self.encode, split_into(2, 'seealso', string))
+                    self.body.append(r'\index{%s|see{%s}}' % (p1, p2))
+                else:
+                    self.builder.warn(
+                        'unknown index entry type %s found' % type)
+            except ValueError, err:
+                self.builder.warn(str(err))
         raise nodes.SkipNode
 
     def visit_raw(self, node):
@@ -1099,11 +1114,17 @@ class LaTeXTranslator(nodes.NodeVisitor):
                  uri.startswith('https:') or uri.startswith('ftp:'):
             self.body.append('\\href{%s}{' % self.encode_uri(uri))
             # if configured, put the URL after the link
-            if self.builder.config.latex_show_urls and \
-                   node.astext() != uri:
+            show_urls = self.builder.config.latex_show_urls
+            if node.astext() != uri and show_urls and show_urls != 'no':
                 if uri.startswith('mailto:'):
                     uri = uri[7:]
-                self.context.append('} (%s)' % self.encode_uri(uri))
+                if show_urls == 'footnote' and not \
+                   (self.in_footnote or self.in_caption):
+                    # obviously, footnotes in footnotes are not going to work
+                    self.context.append(
+                        r'}\footnote{%s}' % self.encode_uri(uri))
+                else:  # all other true values (b/w compat)
+                    self.context.append('} (%s)' % self.encode_uri(uri))
             else:
                 self.context.append('}')
         elif uri.startswith('#'):
@@ -1206,7 +1227,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.no_contractions -= 1
         if self.in_title:
             self.body.append(r'\texttt{%s}' % content)
-        elif node.has_key('role') and node['role'] == 'samp':
+        elif node.get('role') == 'samp':
             self.body.append(r'\samp{%s}' % content)
         else:
             self.body.append(r'\code{%s}' % content)
@@ -1239,10 +1260,10 @@ class LaTeXTranslator(nodes.NodeVisitor):
         code = self.verbatim.rstrip('\n')
         lang = self.hlsettingstack[-1][0]
         linenos = code.count('\n') >= self.hlsettingstack[-1][1] - 1
-        if node.has_key('language'):
+        if 'language' in node:
             # code-block directives
             lang = node['language']
-        if node.has_key('linenos'):
+        if 'linenos' in node:
             linenos = node['linenos']
         def warner(msg):
             self.builder.warn(msg, (self.curfilestack[-1], node.line))

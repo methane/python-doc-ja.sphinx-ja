@@ -18,7 +18,7 @@ from docutils.parsers.rst import roles
 from sphinx import addnodes
 from sphinx.locale import _
 from sphinx.util import ws_re
-from sphinx.util.nodes import split_explicit_title
+from sphinx.util.nodes import split_explicit_title, process_index_entry
 
 
 generic_docroles = {
@@ -141,16 +141,15 @@ class XRefRole(object):
     # methods that can be overwritten
 
     def process_link(self, env, refnode, has_explicit_title, title, target):
-        """
-        Called after parsing title and target text, and creating the reference
-        node (given in *refnode*).  This method can alter the reference node and
-        must return a new (or the same) ``(title, target)`` tuple.
+        """Called after parsing title and target text, and creating the
+        reference node (given in *refnode*).  This method can alter the
+        reference node and must return a new (or the same) ``(title, target)``
+        tuple.
         """
         return title, ws_re.sub(' ', target)
 
     def result_nodes(self, document, env, node, is_ref):
-        """
-        Called before returning the finished nodes.  *node* is the reference
+        """Called before returning the finished nodes.  *node* is the reference
         node if one was created (*is_ref* is then true), else the content node.
         This method can add other nodes and must return a ``(nodes, messages)``
         tuple (the usual return value of a role function).
@@ -173,8 +172,8 @@ def indexmarkup_role(typ, rawtext, etext, lineno, inliner,
     inliner.document.note_explicit_target(targetnode)
     if typ == 'pep':
         indexnode['entries'] = [
-            ('single', _('Python Enhancement Proposals!PEP %s') % text,
-             targetid, 'PEP %s' % text)]
+            ('single', _('Python Enhancement Proposals; PEP %s') % text,
+             targetid, '')]
         anchor = ''
         anchorindex = text.find('#')
         if anchorindex > 0:
@@ -193,8 +192,7 @@ def indexmarkup_role(typ, rawtext, etext, lineno, inliner,
         rn += sn
         return [indexnode, targetnode, rn], []
     elif typ == 'rfc':
-        indexnode['entries'] = [('single', 'RFC; RFC %s' % text,
-                                 targetid, 'RFC %s' % text)]
+        indexnode['entries'] = [('single', 'RFC; RFC %s' % text, targetid, '')]
         anchor = ''
         anchorindex = text.find('#')
         if anchorindex > 0:
@@ -271,11 +269,38 @@ def abbr_role(typ, rawtext, text, lineno, inliner, options={}, content=[]):
     return [addnodes.abbreviation(abbr, abbr, explanation=expl)], []
 
 
+def index_role(typ, rawtext, text, lineno, inliner, options={}, content=[]):
+    # create new reference target
+    env = inliner.document.settings.env
+    targetid = 'index-%s' % env.new_serialno('index')
+    targetnode = nodes.target('', '', ids=[targetid])
+    # split text and target in role content
+    has_explicit_title, title, target = split_explicit_title(text)
+    title = utils.unescape(title)
+    target = utils.unescape(target)
+    # if an explicit target is given, we can process it as a full entry
+    if has_explicit_title:
+        entries = process_index_entry(target, targetid)
+    # otherwise we just create a "single" entry
+    else:
+        # but allow giving main entry
+        main = ''
+        if target.startswith('!'):
+            target = target[1:]
+            title = title[1:]
+            main = 'main'
+        entries = [('single', target, targetid, main)]
+    indexnode = addnodes.index()
+    indexnode['entries'] = entries
+    textnode = nodes.Text(title, title)
+    return [indexnode, targetnode, textnode], []
+
+
 specific_docroles = {
     # links to download references
     'download': XRefRole(nodeclass=addnodes.download_reference),
     # links to documents
-    'doc': XRefRole(),
+    'doc': XRefRole(warn_dangling=True),
 
     'pep': indexmarkup_role,
     'rfc': indexmarkup_role,
@@ -284,6 +309,7 @@ specific_docroles = {
     'file': emph_literal_role,
     'samp': emph_literal_role,
     'abbr': abbr_role,
+    'index': index_role,
 }
 
 for rolename, func in specific_docroles.iteritems():
