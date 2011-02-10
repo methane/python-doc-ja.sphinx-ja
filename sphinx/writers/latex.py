@@ -273,7 +273,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
         return '\\autopageref*{%s}' % self.idescape(id)
 
     def idescape(self, id):
-        return str(unicode(id).translate(tex_replace_map))
+        return unicode(id).translate(tex_replace_map)
 
     def generate_indices(self):
         def generate(content, collapsed):
